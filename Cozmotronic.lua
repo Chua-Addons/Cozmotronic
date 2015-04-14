@@ -17,7 +17,7 @@ local karRaceToString = {
 	[GameLib.CodeEnumRace.Granok] = Apollo.GetString("RaceGranok"),
 	[GameLib.CodeEnumRace.Aurin] = Apollo.GetString("RaceAurin"),
 	[GameLib.CodeEnumRace.Draken] = Apollo.GetString("RaceDraken"),
-	[GameLib.CodeEnunRace.Mechari] = Apollo.GetString("RaceMechari"),
+	[GameLib.CodeEnumRace.Mechari] = Apollo.GetString("RaceMechari"),
 	[GameLib.CodeEnumRace.Chua] = Apollo.GetString("RaceChua"),
 	[GameLib.CodeEnumRace.Mordesh] = Apollo.GetString("CRB_Mordesh")
 }
@@ -196,7 +196,24 @@ function Cozmotronic:OnDocLoaded()
 			return
 		end
 		
-	    self.wndMain:Show(false, true)
+		-- Create the required tabs
+		local wndBiography = Apollo.LoadForm(self.xmlDoc, "CozmotronicForm", nil, self)
+		local wndOptions = Apollo.LoadForm(self.xmlDoc, "CozmotronicForm", nil, self)
+		
+		-- Configure the tabs
+		wndBiography:SetText("Biography")
+		wndOptions:SetText("Options")
+		
+		-- Fire the windows management event.
+		Event_FireGenericEvent("WindowManagementAdd", {wnd = wndBiography, strName = "Biography", bIsTabWindow = true})
+		Event_FireGenericEvent("WindowManagementAdd", {wnd = wndOptions, strName = "Options", bIsTabWindow = true})		
+		
+		-- Inject the tabs
+		self.wndMain:AttachTab(wndBiography, true)
+		self.wndMain:AttachTab(wndOptions, true)
+		
+		-- Show the form
+	    self.wndMain:Show(true)
 
 		-- if the xmlDoc is no longer needed, you should set it to nil
 		-- self.xmlDoc = nil
@@ -228,206 +245,6 @@ end
 -- when the Close button is clicked
 function Cozmotronic:OnClose()
 	self.wndMain:Close() -- hide the window
-end
-
-
----------------------------------------------------------------------------------------------------
--- OverheadForm Functions
----------------------------------------------------------------------------------------------------
-
--- Verifies the VisbilityOptions for the specified Nameplate.
-function Cozmotronic:VerifyVisibilityOptions(tNameplate)
-	local unitOwner = tNameplate.unitOwner
-	local bHiddenUnit = not unitOwner:ShouldShowNamePlate()
-	
-	-- If the unit is hidden, return false to not draw the nameplate.
-	if bHiddenUnit then
-		return false
-	end
-	
-	-- If the nameplate is occluded, or the unit is not onscreen, return false
-	-- to not draw the nameplate.
-	if tNameplate.bOccluded or not tNameplate.bOnScreen then
-		return false
-	end
-	
-	-- Return true if it's our own nameplate and needs to be shown.
-	if unitOwner:IsThePlayer() then
-		return self.tNameplateOptions.bShowMyNameplate
-	end
-	
-	-- If we need to show the target's nameplate, check if we're dealing with the
-	-- target.
-	if self.tNameplateOptions.bShowTargetNameplate == true then
-		return GameLib.GetTargetUnit() == unitOwner
-	end
-	
-	-- We're not sure what nameplate it is, so let's just draw it.
-	return true
-end
-
--- Gets called every time the UnitOcclusion changed in the client.
--- Will check whether the visibility of our nameplate needs to be changed.
-function Cozmotronic:OnUnitOcclusionChanged( wndHandler, wndControl, bOccluded )
-	local idUnit = wndHandler:GetId()
-	
-	if self.arWnd2Nameplate[idUnit] ~= nil then
-		self.arWnd2Nameplate[idUnit].bOccluded = bOccluded
-		self:UpdateNameplateVisibility(self.arWnd2Nameplate[idUnit])
-	end
-end
-
--- Updates the visibility of the supplied nameplate, based on the distance and the
--- visbility options configured in Cozmotronic.
-function Cozmotronic:UpdateNameplateVisibility(tNameplate)
-	local bNewShow = self:VerifyVisibilityOptions(tNameplate) 
-					and (DistanceToUnit(tNameplate.unitOwner) <= self.tNamePlateOptions.nNameplateDistance
-	
-	if bNewShow ~= tNameplate.bShow then
-		tNameplate.wndNameplate:Show(bNewShow, false)
-		tNameplate.bShow = bNewShow
-	end	
-end
-
--- Gets called every time the WorldLocationOnScreen event is triggered.
--- Determines the flag whether the nameplate is onScreen or not.
-function Cozmotronic:OnWorldLocationOnScreen( wndHandler, wndControl, bOnScreen )
-	local idUnit = wndHandler:GetId()
-	
-	if self.arWnd2Nameplate[idUnit] ~= nil then
-		self.arWnd2Nameplate[idUnit].bOnScreen = bOnScreen
-	end
-end
-
--- Draws the specified nameplate on the screen.
-function Cozmotronic:DrawNameplate(tNameplate)
-	if not tNameplate.bShow then
-		return
-	end
-	
-	local unitPlayer = self.unitPlayer
-	local unitOwner = tNameplate.unitOwner
-	local wndNameplate = tNameplate.wndNameplate
-
-	tNameplate.eDisposition = unitOwner:GetDispositionTo(unitPlayer)
-	
-	if unitOwner:IsMounted() and wndNameplate:GetUnit() == unitOwner then
-		wndNameplate:SetUnit(unitOwner:GetUnitMount(), 1)
-	elseif not unitOwner:IsMounted() and wndNameplate:GetUnit() ~= unitOwner then
-		wndNameplate:SetUnit(unitOwner, self.tNamePlateOptions.nAnchor)
-	end
-
-	local bShowNameplate = (DistanceToUnit(tNameplate.unitOwner) <= self.tNamePlateOptions.nNameplateDistance) and self:VerifyVisibilityOptions(tNameplate)
-	
-	wndNameplate:Show(bShowNameplate, false)
-	
-	if not bShowNameplate then
-		return
-	end
-	
-	if self.tNamePlateOptions.nXoffset or self.tNamePlateOptions.nYoffset then
-		wndNameplate:SetAnchorOffsets(-15 + (self.tNamePlateOptions.nXoffset or 0), -15 + (self.tNamePlateOptions.nYoffset or 0), 15 + (self.tNamePlateOptions.nXoffset or 0), 15 + (self.tNamePlateOptions.nYoffset or 0))
-	end
-	
-	if self.tNamePlateOptions.bScaleNameplates == true then
-		if PerspectivePlates == nil then 
-			PerspectivePlates = Apollo.GetAddon("PerspectivePlates")
-		end
-		
-		if PerspectivePlates then
-			PerspectivePlates:OnRequestedResize(tNameplate)
-		else
-			self:ScaleNameplate(tNameplate)
-		end
-	end
-	
-	self:DrawRPNamePlate(tNameplate)
-end
-
--- Draws the RP Nameplate for the Addon, using the provided information.
-function Cozmotronic:DrawRPNamePlate(tNameplate)
-	local tRPColors, tCSColors
-	local rpFullname, rpTitle, rpStatus
-	local unitName = tNameplate.unitName
-	local xmlNamePlate = XmlDoc:new()
-	local wndNameplate = tNameplate.wndNameplate
-	local wndData = wndNameplate:FindChild("wnd_Data")
-	local btnRP = wndNameplate:FindChild("btn_RP")
-	
-	-- TODO: Implement communication to get information.
-	--rpFullname = RPCore:GetTrait(unitName,"fullname") or unitName
-	--rpTitle = RPCore:FetchTrait(unitName,"title")
-	--rpStatus = RPCore:GetTrait(unitName, "rpflag")
-	
-	local strNameString = ""
-
-	if self.tNamePlateOptions.bShowNames == true then
-		strNameString = strNameString .. string.format("{name}%s{/name}\n", rpFullname)
-	
-		if self.tNamePlateOptions.bShowTitles == true and rpTitle ~= nil then
-			strNameString = strNameString .. string.format("{title}%s{/title}", rpTitle)
-		end	
-	end
-	
-	local strNamePlate = GeminiRichText:ParseMarkup(strNameString, self.tStyles)
-
-	wndData:SetAML(strNamePlate)
-	wndData:SetHeightToContentHeight()
-	
-	if rpStatus == nil then rpStatus = 0 end
-	
-	local strState = RPCore:FlagsToString(rpStatus)
-	local xmlTooltip = XmlDoc.new()
-	
-	xmlTooltip:StartTooltip(Tooltip.TooltipWidth)
-	
-	if self.tNamePlateOptions.bShowNames == false then
-		xmlTooltip:AddLine(rpFullname, "FF009999", "CRB_InterfaceMedium_BO")
-	
-		if self.tNamePlateOptions.bShowTitles == true and rpTitle ~= nil then
-			xmlTooltip:AddLine(rpTitle, "FF99FFFF", "CRB_InterfaceMedium_BO")
-		end
-		
-		xmlTooltip:AddLine("????????????????????", "FF99FFFF", "CRB_InterfaceMedium_BO")
-	end
-
-	xmlTooltip:AddLine(strState, self.tStateColors[rpStatus], "CRB_InterfaceMedium_BO")
-	btnRP:SetTooltipDoc(xmlTooltip)
-	btnRP:SetBGColor(self.tStateColors[rpStatus] or "FFFFFFFF")
-end
-
--- Scales the selected nameplate, rendering it properly on screen.
-function Cozmotronic:ScaleNameplate(tNameplate)
-	if tNameplate.unitOwner:IsThePlayer() then return end
-
-	local wndNameplate = tNameplate.wndNameplate
-	local nDistance = DistanceToUnit(tNameplate.unitOwner)
-	local fDistancePercentage = ((self.tNamePlateOptions.nNameplateDistance / nDistance) - 0.5)
-	
-	if fDistancePercentage > 1 then
-		fDistancePercentage = 1
-	end
-	
-	wndNameplate:SetScale(fDistancePercentage)
-end
-
--- Refreshes the nameplates we have drawn onscreen, updating their information.
-function Cozmotronic:RefreshPlates()
-	for idx, tNameplate in pairs(self.arUnit2Nameplate) do
-		if self.bHideAllNameplates == true then
-			tNameplate.wndNameplate:Show(false, false)
-			tNameplate.bShow = false
-		else
-			local bNewShow = self:HelperVerifyVisibilityOptions(tNameplate) and (DistanceToUnit(tNameplate.unitOwner) <= self.tNamePlateOptions.nNameplateDistance)
-
-			if bNewShow ~= tNameplate.bShow then
-				tNameplate.wndNameplate:Show(bNewShow, false)
-				tNameplate.bShow = bNewShow
-			end
-			
-			self:DrawNameplate(tNameplate)
-		end
-	end
 end
 
 -----------------------------------------------------------------------------------------------
