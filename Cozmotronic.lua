@@ -27,7 +27,8 @@ local Message = {}
 local function split(str, sep)
   if sep == nil then sep = "%s" end
   
-  local result = {} ; i = 1
+  local result = {} ;
+  local i = 1
   local pattern = string.format("([^%s]+)%s", sep, sep)
   
   for match in str:gmatch(pattern) do
@@ -66,10 +67,13 @@ end
 ---------------------------------------------------------------------------------------------------
 -- Message Setters and Getters
 ---------------------------------------------------------------------------------------------------
+
+-- Gets the sequence of the Message.
 function Message:GetSequence()
   return self.nSequence
 end
 
+-- Sets the sequence of the Message.
 function Message:SetSequence(nSequence)
   if(type(nSequence) ~= "number") then
     error("Communicator: Attempt to set non-number sequence: " .. tostring(nSequence))
@@ -78,10 +82,12 @@ function Message:SetSequence(nSequence)
   self.nSequence = nSequence
 end
 
+-- Gets the command as string of the Message.
 function Message:GetCommand()
   return self.strCommand
 end
 
+-- Sets the command as string of the Message.
 function Message:SetCommand(strCommand)
   if(type(strCommand) ~= "string") then
     error("Communicator: Attempt to set non-string command: " .. tostring(strCommand))
@@ -90,10 +96,12 @@ function Message:SetCommand(strCommand)
   self.strCommand = strCommand
 end
 
+-- Gets the type of the Message.
 function Message:GetType()
   return self.eMessageType
 end
 
+-- Sets the type of the Message.
 function Message:SetType(eMessageType)
   if(type(eMessageType) ~= "number") then
     error("Communicator: Attempt to set non-number type: " .. tostring(eMessageType))
@@ -106,10 +114,12 @@ function Message:SetType(eMessageType)
   self.eMessageType = eMessageType
 end
 
+-- Gets the AddonProtocol of the Message.
 function Message:GetAddonProtocol()
   return self.strAddon
 end
 
+-- Sets the AddonProtocol of the Message.
 function Message:SetAddonProtocol(strAddon)
   if(type(strAddon) ~= "string" and type(strAddon) ~= "nil") then
     error("Communicator: Attempt to set non-string addon: " .. tostring(strAddon))
@@ -118,10 +128,14 @@ function Message:SetAddonProtocol(strAddon)
   self.strAddon = strAddon
 end
 
+-- Gets the Origin of the Message.
+-- This is normally the name of the Player that send the Message.
 function Message:GetOrigin()
   return self.strOrigin
 end
 
+-- Sets the Origin of the Message.
+-- This is the name of the Player where the message originates from.
 function Message:SetOrigin(strOrigin)
   if(type(strOrigin) ~= "string") then
     error("Communicator: Attempt to set non-string origin: " .. tostring(strOrigin))
@@ -130,10 +144,14 @@ function Message:SetOrigin(strOrigin)
   self.strOrigin = strOrigin
 end
 
+-- Gets the Destination of the Message.
+-- This is the name of receiving Player.
 function Message:GetDestination()
   return self.strDestination
 end
 
+-- Sets the Destination of the Message.
+-- This is the name of the receiving Player.
 function Message:SetDestination(strDestination)
   if(type(strDestination) ~= "string") then
     error("Communicator: Attempt to set non-string destination: " .. tostring(strDestination))
@@ -142,10 +160,14 @@ function Message:SetDestination(strDestination)
   self.strDestination = strDestination
 end
 
+-- Gets the Payload of the Message.
+-- This is a JSON serialized string, representing table structures.
 function Message:GetPayload()
   return self.tPayload
 end
 
+-- Sets the Payload of the Message.
+-- This is a JSON serialized string, representing table structures.
 function Message:SetPayload(tPayload)
   if(type(tPayload) ~= "table") then
     error("Communicator: Attempt to set non-table payload: " .. tostring(tPayload))
@@ -154,10 +176,12 @@ function Message:SetPayload(tPayload)
   self.tPayload = tPayload
 end
 
+-- Gets the Protocol Version of the Message.
 function Message:GetProtocolVersion()
   return self.nProtocolVersion
 end
 
+-- Sets the Protocol Version of the Message.
 function Message:SetProtocolVersion(nProtocolVersion)
   if(type(nProtocolVersion) ~= "number") then
     error("Communicator: Attempt to set non-number protocol: " .. tostring(nProtocolVersion))
@@ -170,8 +194,11 @@ end
 -- Message serialization & deserialization
 ---------------------------------------------------------------------------------------------------
 
+-- Serializes the internal datasctructure of the Message into a JSON string.
+-- This allows a complete table structure to be communicated between Addons (or players) and
+-- condense it in a smaller format.
 function Message:Serialize()
-	local message ={
+	local message = {
 		version = self:GetProtocolVersion(),
 		command = self:GetCommand(),
 		type = self:GetType(),
@@ -179,15 +206,18 @@ function Message:Serialize()
 		sequence = self:GetSequence(),
 		origin = self:GetOrigin(),
 		destination = self:GetDestination()
-	}
+  }
+
 	return JSON:encode(message)   
 end
 
+-- Deserializes a provided JSON string and attempts to set the internal
+-- datasctructure based on the information extracted.
 function Message:Deserialize(strPacket)
   if(strPacket == nil) then return end
+
   local message = JSON:decode(strPacket)
 
-  -- Set out properties
   self:SetProtocolVersion(message.version)
   self:SetCommand(message.command)
   self:SetType(message.type)
@@ -195,7 +225,6 @@ function Message:Deserialize(strPacket)
   self:SetSequence(message.sequence)
   self:SetOrigin(message.origin)
   self:SetDestination(message.destination)
-  
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -239,6 +268,11 @@ end
 ---------------------------------------------------------------------------------------------------
 -- Communicator Methods
 ---------------------------------------------------------------------------------------------------
+
+-- This method is called whenever the Addon is loaded by the Client.
+-- We use this hook to set our internal variables and initialze them with a default value.
+-- We also hook into the required events that the Game provides and create our internal timers
+-- and callback methods to process our messages in the background.
 function Communicator:OnLoad()
   self.tApiProtocolHandlers = {}
   self.tLocalTraits = {}
@@ -251,6 +285,7 @@ function Communicator:OnLoad()
   self.nSequenceCounter = 0
   self.nDebugLevel = 0
   self.qPendingMessages = Queue:new()
+  self.strPlayerName = nil
   self.kstrRPStateStrings = {
     "In-Character, Not Available for RP",
     "Available for RP",
@@ -258,8 +293,8 @@ function Communicator:OnLoad()
     "In a Private Scene (Temporarily OOC)",
     "In a Private Scene",
     "In an Open Scene (Temporarily OOC)",
-    "In an Open Scene" }
-  self.strPlayerName = nil
+    "In an Open Scene"
+  }
   
   -- Register our timeout handlers for all timers.
   Apollo.RegisterTimerHandler("Communicator_Timeout", "OnTimerTimeout", self)
@@ -275,6 +310,13 @@ function Communicator:OnLoad()
   Apollo.CreateTimer("Communicator_CleanupCache", 60, true)
 end
 
+-- This method is called by the Game whenever the Addon is required to save it's information.
+-- We simply return the required information based on the level of the save:
+--
+-- Character: We store all local traits of the character only.
+-- Realm: We store all cached information we have about other players.
+--
+-- In all other cases, no information is stored by the Addon.
 function Communicator:OnSave(eLevel)
   if (eLevel == GameLib.CodeEnumAddonSaveLevel.Character) then
     return { localData = self.tLocalTraits }
@@ -285,6 +327,12 @@ function Communicator:OnSave(eLevel)
   end
 end
 
+-- This is the method called by the Game when the Addon is provided with information about the
+-- previous state. Usually called when reloading the game/UI or logging in.
+-- This allows us to restore the internal state of our Addon:
+--
+-- Character: We restore the information of our character
+-- Realm: We restore the information about all previous Players we encountered.
 function Communicator:OnRestore(eLevel, tDate)
   if (tData ~= nil and eLevel == GameLib.CodeEnumAddonSaveLevel.Character) then
     local tLocal = tData.localData
@@ -300,6 +348,13 @@ function Communicator:OnRestore(eLevel, tDate)
   end
 end
 
+-- This is a callback for a Timer function. We use this to actually hook into ICCommLib.
+-- The reason for placing this behind a Timer, is to ensure that the game has properly loaded and that all
+-- required functionality is in place for ICCommLib to work properly.
+--
+-- In this function we either fire the Timer again for another second if our Character is not in the game
+-- world yet, or we set up our Global communication channel for Communicator and set the proper callback
+-- messages to detect changes, messages and errors.
 function Communicator:OnTimerSetup()
   if(GameLib.GetPlayerUnit() == nil) then
     Apollo.CreateTimer("Communicator_Setup", 1, false)
@@ -1038,8 +1093,8 @@ local function DistanceToUnit(unitTarget)
 		return 0
 	end
 
-	tPosTarget = unitTarget:GetPosition()
-	tPosPlayer = unitPlayer:GetPosition()
+	local tPosTarget = unitTarget:GetPosition()
+	local tPosPlayer = unitPlayer:GetPosition()
 
 	if tPosTarget == nil or tPosPlayer == nil then
 		return 0
@@ -1048,8 +1103,8 @@ local function DistanceToUnit(unitTarget)
 	local nDeltaX = tPosTarget.x - tPosPlayer.x
 	local nDeltaY = tPosTarget.y - tPosPlayer.y
 	local nDeltaZ = tPosTarget.z - tPosPlayer.z
-
 	local nDistance = math.floor(math.sqrt((nDeltaX ^ 2) + (nDeltaY ^ 2) + (nDeltaZ ^ 2)))
+
 	return nDistance
 end
 
