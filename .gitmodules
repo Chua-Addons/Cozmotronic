@@ -1,0 +1,3 @@
+[submodule "Communictor"]
+	path = Communictor
+	url = https://github.com/NekoNova/Communictor.git
