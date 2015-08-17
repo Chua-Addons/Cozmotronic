@@ -1,6 +1,6 @@
-[submodule "Communictor"]
-	path = Communictor
-	url = https://github.com/NekoNova/Communictor.git
+[submodule "Communicator"]
+	path = Communicator
+	url = https://github.com/NekoNova/Communicator.git
 [submodule "GeminiColor"]
 	path = GeminiColor
 	url = https://github.com/wildstarnasa/GeminiColor.git
