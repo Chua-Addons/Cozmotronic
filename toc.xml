@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Addon Author="Tenpi" APIVersion="9" Name="Cozmotronic" Description="The successor to PDA" Version="">
+	<Form Name="GeminiColor\GeminiColor.xml" />
+	<Script Name="GeminiColor\GeminiColor.lua" />
+	<Form Name="GeminiRichText\GeminiRichText.xml" />
+	<Script Name="GeminiRichText\GeminiRichText.lua" />
+    <Script Name="Communicator\communicator.lua"/>
     <Script Name="Cozmotronic.lua"/>
     <Form Name="Cozmotronic.xml"/>
 </Addon>

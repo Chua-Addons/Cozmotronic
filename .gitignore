@@ -41,3 +41,6 @@ luac.out
 
 # IDE
 .idea
+/.buildpath
+/.settings/
+/.project
