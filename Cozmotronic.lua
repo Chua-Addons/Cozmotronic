@@ -28,7 +28,7 @@ local ktLocalizationStrings = {
     _build = "Build",
     _occupation = "Occupation",
     _description = "Description",
-    _slashHelp = " \nPDA Help:\n----------------------------\nType /cozmo off to hide all nameplates.\nType /cozmo on to show nameplates.\nType /cozmo status [0-7] to change your RP Flag status.\nType /cozmo to show the main UI.",
+    _slashHelp = " \nCozmotronic Help:\n----------------------------\nType /cozmo off to hide all nameplates.\nType /cozmo on to show nameplates.\nType /cozmo status [0-7] to change your RP Flag status.\nType /cozmo to show the main UI.",
   },
   frFR= {
     _name = "Nom",
@@ -40,7 +40,7 @@ local ktLocalizationStrings = {
     _build = "Carrure",
     _occupation = "Profession",
     _description = "Description",
-    _slashHelp = " \nPDA Aide:\n----------------------------\nEntrez /cozmo off pour cacher toutes les Plaques d’Identification.\nEntrez /cozmo on pour révéler les Plaques d’Identification.\nEntrez /cozmo status [0-7] Pour changer votre status RP Flag.\nEntrez /cozmo pour révéler l’interface principale.",
+    _slashHelp = " \nCozmotronic Aide:\n----------------------------\nEntrez /cozmo off pour cacher toutes les Plaques d’Identification.\nEntrez /cozmo on pour révéler les Plaques d’Identification.\nEntrez /cozmo status [0-7] Pour changer votre status RP Flag.\nEntrez /cozmo pour révéler l’interface principale.",
   },
   deDE= {
     _name = "Name",
@@ -52,7 +52,7 @@ local ktLocalizationStrings = {
     _build = "Körperbau",
     _occupation = "Beruf",
     _description = "Darstellung",
-    _slashHelp = " \nPDA Hilfe:\n----------------------------\nTyp /cozmo aus, um alle Namensschilder verstecken.\nTyp /cozmo auf Namensschilder zeigen.\nTyp /cozmo status [0-7], um die RP Flag Status zu ändern.\nTyp /cozmo, um die Haupt-UI zeigen.",
+    _slashHelp = " \nCozmotronic Hilfe:\n----------------------------\nTyp /cozmo aus, um alle Namensschilder verstecken.\nTyp /cozmo auf Namensschilder zeigen.\nTyp /cozmo status [0-7], um die RP Flag Status zu ändern.\nTyp /cozmo, um die Haupt-UI zeigen.",
   },
 }
 
@@ -257,22 +257,26 @@ end
 -----------------------------------------------------------------------------------------------
 function Cozmotronic:OnDocLoaded()
   if self.xmlDoc ~= nil and self.xmlDoc:IsLoaded() then
+    -- Load our packages first.
+    Communicator = Apollo.GetPackage("Communicator").tPackage
+    GeminiColor = Apollo.GetPackage("GeminiColor").tPackage
+    GeminiRichText = Apollo.GetPackage("GeminiRichText").tPackage
+    PerspectivePlates = Apollo.GetAddon("PerspectivePlates")
+  
+    -- Load our Windows
     self.wndMain = Apollo.LoadForm(self.xmlDoc, "wndMain", nil, self)
-    self.wndError = Apollo.LoadForm(self.xmlDoc, "wndError", nil, self)
-  
-    if self.wndMain == nil then
-      Apollo.AddAddonErrorText(self, "Could not load the main window for some reason.")
-      return
-    end
-  
-    if self.wndError == nil then
-      Apollo.AddAddonErrorText(self, "Could not load the error window for some reason.")
-      return
-    end
+    self.wndError = Apollo.LoadForm(self.xmlDoc, "wndError", nil, self)        
+    self.wndOptions = Apollo.LoadForm(self.xmlDoc, "wndOptions", nil, self)
+    
+    -- Configure our Windows
+    self.wndStyleEditor = GeminiRichText:CreateMarkupStyleEditor(self.wndOptions:FindChild("group_Styles"):FindChild("wnd_Styles"), self.tStyles)
+    self.wndOptions:FindChild("wnd_ScrollFrame:group_NameplatePosition"):FindChild("input_n_OffsetX"):SetMinMax(-200, 200, 0)
+    self.wndOptions:FindChild("wnd_ScrollFrame:group_NameplatePosition"):FindChild("input_n_OffsetY"):SetMinMax(-200, 200, 0)
   
     -- Don't show any of our Forms
     self.wndMain:Show(false)
     self.wndError:Show(false)
+    self.wndOptions:Show(false)
     
     -- if the xmlDoc is no longer needed, you should set it to nil
     -- self.xmlDoc = nil
@@ -283,7 +287,7 @@ function Cozmotronic:OnDocLoaded()
     Apollo.RegisterEventHandler("UnitCreated","OnUnitCreated",self) 
     Apollo.RegisterEventHandler("UnitDestroyed","OnUnitDestroyed",self)
     Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
-    Apollo.RegisterEventHandler("ToggleAddon_PDA", "OnPDAOn", self)
+    Apollo.RegisterEventHandler("ToggleAddon_Cozmotronic", "OnCozmotronicOn", self)
     Apollo.RegisterEventHandler("Communicator_VersionUpdated", "OnCommunicatorCallback", self)
     Apollo.RegisterEventHandler("ChangeWorld", "OnWorldChange", self)
   
@@ -293,15 +297,8 @@ function Cozmotronic:OnDocLoaded()
     self.tmrRefreshCharacterSheet = ApolloTimer.Create(3, true, "UpdateCharacterSheet", self)
     self.tmrRefreshCharacterSheet:Stop()
     
-    -- Check the Locale we're running in
-    self.locale = GetLocale()
-    
-    -- Do additional Addon initialization here
-    Communicator = Apollo.GetPackage("Communicator").tPackage
-    GeminiColor = Apollo.GetPackage("GeminiColor").tPackage
-    GeminiRichText = Apollo.GetPackage("GeminiRichText").tPackage
-    PerspectivePlates = Apollo.GetAddon("PerspectivePlates")
-    
+    -- Configure remaining info
+    self.locale = GetLocale()    
     self.bCommunicatorLoaded = true
   
     if Communicator == nil then
@@ -331,7 +328,7 @@ end
 -- This function is called whenever a unit is created in the same world as our Player.
 -- We use this function to figure out if this unit is actually a player and if he is
 -- running Cozmotronic.
-function Cozmotronic:OnUnitCreate(unitNew)
+function Cozmotronic:OnUnitCreated(unitNew)
   if not self.unitPlayer then
     self.unitPlayer = GameLib.GetPlayerUnit()
   end
@@ -423,6 +420,7 @@ end
 -- Interface list.
 -- For now this function doesn't do anything.
 function Cozmotronic:OnConfigure()
+  self.wndOptions:Show(true)
 end
 
 -----------------------------------------------------------------------------------------------
@@ -635,7 +633,7 @@ function Cozmotronic:DrawRPNamePlate(tNameplate)
   
   if rpStatus == nil then rpStatus = 0 end
   
-  local strState = RPCore:FlagsToString(rpStatus)
+  local strState = Communicator:FlagsToString(rpStatus)
   local xmlTooltip = XmlDoc.new()
   
   xmlTooltip:StartTooltip(Tooltip.TooltipWidth)

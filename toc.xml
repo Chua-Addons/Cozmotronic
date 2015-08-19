@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Addon Author="Tenpi" APIVersion="9" Name="Cozmotronic" Description="The successor to PDA" Version="">
+<Addon Author="Olivar Nax" APIVersion="10" Name="Cozmotronic" Description="The successor to PDA" Version="">
 	<Form Name="GeminiColor\GeminiColor.xml" />
 	<Script Name="GeminiColor\GeminiColor.lua" />
 	<Form Name="GeminiRichText\GeminiRichText.xml" />
