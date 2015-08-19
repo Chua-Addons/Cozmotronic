@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Sprites>
-    <AutoButton Name="RPButton" Texture="textures\RP.tga" x0="0" x1="0" x2="64" x3="64" x4="64" x5="64" y0="0" y1="0" y2="64" y3="64" y4="64" y5="64" Stretchy="1" StateBits="31" Direction="Across"/>
+	<Sprite Name="RPIcon" Cycle="1">
+        <Frame Texture="Cozmotronic\textures\RP.tga" x0="0" x1="0" x2="0" x3="63" x4="63" x5="63" y0="0" y1="0" y2="0" y3="63" y4="63" y5="63" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="cyan" EndColor="cyan"/>
+    </Sprite>
+    <AutoButton Name="RPButton" Texture="Cozmotronic\textures\RP.tga" x0="0" x1="0" x2="64" x3="64" x4="64" x5="64" y0="0" y1="0" y2="64" y3="64" y4="64" y5="64" Stretchy="1" StateBits="31" Direction="Across"/>
+    <AutoButton Name="StretchyGlass" Texture="UI\Assets\TexPieces\UI_CRB_Crafting_2_0_851.tex" x0="0" x1="13" x2="96" x3="96" x4="177" x5="191" y0="0" y1="13" y2="34" y3="34" y4="57" y5="71" Stretchy="1" StateBits="31" Direction="Across"/>
 </Sprites>

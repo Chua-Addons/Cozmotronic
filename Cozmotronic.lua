@@ -207,18 +207,13 @@ function Cozmotronic:new(o)
   setmetatable(o, self)
   self.__index = self 
   
-  -- initialize variables here
-  self.tPlayers = {}                          -- Used for tracking all players in the channel.
-  self.tOptions = {}                          -- Used for tracking all our RP options.
-  self.tDisplayOptions = {}                   -- Used for temporarely storing the RP options of another player.
-  self.tSettings = {}                         -- Used for storing the Cozmotronic Configuration.
-  self.tNameplateOptions = {}                 -- Used for storing the nameplate configuration.
-  self.arUnit2Nameplate = {}                  -- Tracking all UnitIds for the nameplates
-  self.arWnd2Nameplate = {}                   -- Tracking all WindowIds for the nameplates
-  self.bHideAllNameplates = false             -- By default we do not hide nameplates.
-  self.unitPlayer = GameLib.GetPlayerUnit()   -- Track ourselves.
+  o.arUnit2Nameplate = {}
+  o.arWnd2Nameplate = {}
+  o.bHideAllNameplates = false  
+  o.tStyles = {}
+  o.tStateColors = {}
+  o.tNamePlateOptions = {}
 
-  -- Configure the styles, colours and other required settings.
   for i,v in pairs(ktStyles) do
     o.tStyles[i] = v
   end
@@ -227,29 +222,31 @@ function Cozmotronic:new(o)
     o.tStateColors[i] = v
   end
   
-  for i,v in pairs(ktNamePlateOptions) do
+  for i,v in pairs(ktNameplateOptions) do
     o.tNamePlateOptions[i] = v
   end
+  
+  self.unitPlayer = GameLib.GetPlayerUnit()   -- Track ourselves.
   
   return o
 end
 
 function Cozmotronic:Init()
-	local bHasConfigureFunction = false
-	local strConfigureButtonText = ""
+	local bHasConfigureFunction = true
+	local strConfigureButtonText = "Cozmotronic"
 	local tDependencies = {
     "GeminiColor",
     "GeminiRichText",
 	}
-    Apollo.RegisterAddon(self, bHasConfigureFunction, strConfigureButtonText, tDependencies)
+  
+  Apollo.RegisterAddon(self, bHasConfigureFunction, strConfigureButtonText, tDependencies)
 end
- 
 
 -----------------------------------------------------------------------------------------------
 -- Cozmotronic OnLoad
 -----------------------------------------------------------------------------------------------
 function Cozmotronic:OnLoad()
-  Apollo.LoadSprites("PDA_Sprites.xml", "PDA_Sprites")
+  Apollo.LoadSprites("Cozmotronic_Sprites.xml", "Cozmotronic_Sprites")
   self.xmlDoc = XmlDoc.CreateFromFile("Cozmotronic.xml")
   self.xmlDoc:RegisterCallback("OnDocLoaded", self)
   ksVersion = XmlDoc.CreateFromFile("toc.xml"):ToTable().Version
@@ -313,7 +310,6 @@ function Cozmotronic:OnDocLoaded()
     end
   end
 end
-
 
 -----------------------------------------------------------------------------------------------
 -- Event Handlers
@@ -415,6 +411,18 @@ function Cozmotronic:OnUnitDestroyed(unitOwner)
     wndNameplate:Destroy()
     self.arUnit2Nameplate[idUnit] = nil
   end
+end
+
+-- This function is called when the InterfaceMenuList has properly loaded.
+-- We use this event to hook our own configuration and start building the RP Icon.
+function Cozmotronic:OnInterfaceMenuListHasLoaded()
+  Event_FireGenericEvent("InterfaceMenuList_NewAddOn", "Cozmotronic", {"ToggleAddon_Cozmotronic", "", "Cozmotronic_Sprites:RPIcon"})
+end
+
+-- This function get's fired when the User clicks on the Button for Cozmotronic in the
+-- Interface list.
+-- For now this function doesn't do anything.
+function Cozmotronic:OnConfigure()
 end
 
 -----------------------------------------------------------------------------------------------
@@ -597,7 +605,7 @@ end
 
 -- This function draws the actual RP nameplate on top of the unit nameplate.
 -- Again all checks are kept in mind as in the normal function.
-function PDA:DrawRPNamePlate(tNameplate)
+function Cozmotronic:DrawRPNamePlate(tNameplate)
   local tRPColors, tCSColors
   local rpFullname, rpTitle, rpStatus
   local unitName = tNameplate.unitName
@@ -606,14 +614,15 @@ function PDA:DrawRPNamePlate(tNameplate)
   local wndData = wndNameplate:FindChild("wnd_Data")
   local btnRP = wndNameplate:FindChild("btn_RP")
   
-  rpFullname = RPCore:GetTrait(unitName,"fullname") or unitName
-  rpTitle = RPCore:FetchTrait(unitName,"title")
-  rpStatus = RPCore:GetTrait(unitName, "rpflag")
+  rpFullname = Communicator:GetTrait(unitName, "Name") or unitName
+  rpTitle = Communicator:FetchTrait(unitName, "Title")
+  rpStatus = Communicator:GetTrait(unitName, "rpflag")
   
   local strNameString = ""
   
   if self.tNamePlateOptions.bShowNames == true then
     strNameString = strNameString .. string.format("{name}%s{/name}\n", rpFullname)
+    
     if self.tNamePlateOptions.bShowTitles == true and rpTitle ~= nil then
       strNameString = strNameString .. string.format("{title}%s{/title}", rpTitle)
     end 
@@ -633,9 +642,11 @@ function PDA:DrawRPNamePlate(tNameplate)
   
   if self.tNamePlateOptions.bShowNames == false then
     xmlTooltip:AddLine(rpFullname, "FF009999", "CRB_InterfaceMedium_BO")
+    
     if self.tNamePlateOptions.bShowTitles == true and rpTitle ~= nil then
       xmlTooltip:AddLine(rpTitle, "FF99FFFF", "CRB_InterfaceMedium_BO")
     end
+    
     xmlTooltip:AddLine("――――――――――――――――――――", "FF99FFFF", "CRB_InterfaceMedium_BO")
   end
   
