@@ -79,7 +79,7 @@ local ktNameplateOptions = {
 	bShowNames = true,
 	bShowTitles = true,
 	bScaleNameplates = false,
-	bnNameplateDistance = 50,
+	nNameplateDistance = 50,
 	nAcnhor = 1,
 	bShowTargetNameplate = false
 }
@@ -212,7 +212,7 @@ function Cozmotronic:new(o)
   o.bHideAllNameplates = false  
   o.tStyles = {}
   o.tStateColors = {}
-  o.tNamePlateOptions = {}
+  o.tNameplateOptions = {}
 
   for i,v in pairs(ktStyles) do
     o.tStyles[i] = v
@@ -223,7 +223,7 @@ function Cozmotronic:new(o)
   end
   
   for i,v in pairs(ktNameplateOptions) do
-    o.tNamePlateOptions[i] = v
+    o.tNameplateOptions[i] = v
   end
   
   self.unitPlayer = GameLib.GetPlayerUnit()   -- Track ourselves.
@@ -338,6 +338,8 @@ function Cozmotronic:OnUnitCreated(unitNew)
   end
   
   if unitNew:IsACharacter() then
+    Print("Unit Created = " .. unitNew:GetName())
+    
     for i, player in pairs(Communicator:GetCachedPlayerList()) do
       if unitNew:GetName() == player then
         self:OnCommunicatorCallback({ player = unitNew:GetName() })
@@ -354,18 +356,22 @@ function Cozmotronic:OnCommunicatorCallback(tArgs)
   local strUnitName = tArgs.player
   local unit = GameLib.GetPlayerUnitByName(strUnitName)
   
-  if unit == nil then return end
+  if unit == nil then
+    Print("Unit not found, exiting")
+    return 
+  end
   
   local idUnit = unit:GetId()
   
   if self.arUnit2Nameplate[idUnit] ~= nil and self.arUnit2Nameplate[idUnit].wndNameplate:IsValid() then
+    Print("nameplate drawn, exiting")
     return
   end
   
   local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
   
   wnd:Show(false, true)
-  wnd:SetUnit(unit, self.tNamePlateOptions.nAnchor)
+  wnd:SetUnit(unit, self.tNameplateOptions.nAnchor)
   wnd:SetName("wnd_"..strUnitName)
   
   local tNameplate =
@@ -510,10 +516,10 @@ function Cozmotronic:HelperVerifyVisibilityOptions(tNameplate)
   end
     
   if unitOwner:IsThePlayer() then
-    return self.tNamePlateOptions.bShowMyNameplate
+    return self.tNameplateOptions.bShowMyNameplate
   end
   
-  if self.tNamePlateOptions.bShowTargetNameplate == true then
+  if self.tNameplateOptions.bShowTargetNameplate == true then
     return GameLib.GetTargetUnit() == unitOwner
   end
     
@@ -535,7 +541,7 @@ end
 -- This function updates the visiblity of the provided nameplate, based on the visibility
 -- and distance to the player. When the conditions are correct, we change the visibility.
 function Cozmotronic:UpdateNameplateVisibility(tNameplate)
-  local bNewShow = self:HelperVerifyVisibilityOptions(tNameplate) and (DistanceToUnit(tNameplate.unitOwner) <= self.tNamePlateOptions.nNameplateDistance)
+  local bNewShow = self:HelperVerifyVisibilityOptions(tNameplate) and (DistanceToUnit(tNameplate.unitOwner) <= self.tNameplateOptions.nNameplateDistance)
   
   if bNewShow ~= tNameplate.bShow then
     tNameplate.wndNameplate:Show(bNewShow, false)
@@ -572,10 +578,10 @@ function Cozmotronic:DrawNameplate(tNameplate)
   if unitOwner:IsMounted() and wndNameplate:GetUnit() == unitOwner then
     wndNameplate:SetUnit(unitOwner:GetUnitMount(), 1)
   elseif not unitOwner:IsMounted() and wndNameplate:GetUnit() ~= unitOwner then
-    wndNameplate:SetUnit(unitOwner, self.tNamePlateOptions.nAnchor)
+    wndNameplate:SetUnit(unitOwner, self.tNameplateOptions.nAnchor)
   end
 
-  local bShowNameplate = (DistanceToUnit(tNameplate.unitOwner) <= self.tNamePlateOptions.nNameplateDistance) and self:HelperVerifyVisibilityOptions(tNameplate)
+  local bShowNameplate = (DistanceToUnit(tNameplate.unitOwner) <= self.tNameplateOptions.nNameplateDistance) and self:HelperVerifyVisibilityOptions(tNameplate)
   
   wndNameplate:Show(bShowNameplate, false)
   
@@ -583,11 +589,11 @@ function Cozmotronic:DrawNameplate(tNameplate)
     return
   end
   
-  if self.tNamePlateOptions.nXoffset or self.tNamePlateOptions.nYoffset then
-    wndNameplate:SetAnchorOffsets(-15 + (self.tNamePlateOptions.nXoffset or 0), -15 + (self.tNamePlateOptions.nYoffset or 0), 15 + (self.tNamePlateOptions.nXoffset or 0), 15 + (self.tNamePlateOptions.nYoffset or 0))
+  if self.tNameplateOptions.nXoffset or self.tNameplateOptions.nYoffset then
+    wndNameplate:SetAnchorOffsets(-15 + (self.tNameplateOptions.nXoffset or 0), -15 + (self.tNameplateOptions.nYoffset or 0), 15 + (self.tNameplateOptions.nXoffset or 0), 15 + (self.tNameplateOptions.nYoffset or 0))
   end
   
-  if self.tNamePlateOptions.bScaleNameplates == true then
+  if self.tNameplateOptions.bScaleNameplates == true then
     if PerspectivePlates == nil then 
       PerspectivePlates = Apollo.GetAddon("PerspectivePlates")
     end
@@ -619,10 +625,10 @@ function Cozmotronic:DrawRPNamePlate(tNameplate)
   
   local strNameString = ""
   
-  if self.tNamePlateOptions.bShowNames == true then
+  if self.tNameplateOptions.bShowNames == true then
     strNameString = strNameString .. string.format("{name}%s{/name}\n", rpFullname)
     
-    if self.tNamePlateOptions.bShowTitles == true and rpTitle ~= nil then
+    if self.tNameplateOptions.bShowTitles == true and rpTitle ~= nil then
       strNameString = strNameString .. string.format("{title}%s{/title}", rpTitle)
     end 
   end
@@ -639,10 +645,10 @@ function Cozmotronic:DrawRPNamePlate(tNameplate)
   
   xmlTooltip:StartTooltip(Tooltip.TooltipWidth)
   
-  if self.tNamePlateOptions.bShowNames == false then
+  if self.tNameplateOptions.bShowNames == false then
     xmlTooltip:AddLine(rpFullname, "FF009999", "CRB_InterfaceMedium_BO")
     
-    if self.tNamePlateOptions.bShowTitles == true and rpTitle ~= nil then
+    if self.tNameplateOptions.bShowTitles == true and rpTitle ~= nil then
       xmlTooltip:AddLine(rpTitle, "FF99FFFF", "CRB_InterfaceMedium_BO")
     end
     
