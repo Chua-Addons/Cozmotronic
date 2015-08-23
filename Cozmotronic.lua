@@ -559,6 +559,7 @@ end
 -- as well as occlusion and distance of the nameplate compared to our player unit.
 function Cozmotronic:DrawNameplate(tNameplate)
   if not tNameplate.bShow then
+    Print("tNameplate.bShow is false")
     return
   end
   
