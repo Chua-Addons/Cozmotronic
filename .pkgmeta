@@ -3,5 +3,5 @@ externals:
 		url: https://github.com/NekoNova/Communicator.git
 	GeminiColor:
 		url: https://github.com/wildstarnasa/GeminiColor.git
-	GeminiRichText
+	GeminiRichText:
 		url: https://github.com/wildstarnasa/GeminiRichText.git
