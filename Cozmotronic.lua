@@ -27,7 +27,9 @@ end
 function Cozmotronic:Init()
   local bHasConfigureFunction = true
   local strConfigureButtonText = "Cozmotronic"
-  local tDependencies = {}
+  local tDependencies = {
+    "Communicator"
+  }
   
   Apollo.RegisterAddon(self, bHasConfigureFunction, strConfigureButtonText, tDependencies)
 end
@@ -35,23 +37,23 @@ end
 -- This function is called by the Client when the Addon has been registered and is ready
 -- to be loaded. We will use this to trigger the XML Load and build up the forms.
 function Cozmotronic:OnLoad()
+  self.xmlDoc = XmlDoc.CreateFromFile("Cozmotronic.xml")
+  self.xmlDoc:RegisterCallback("OnDocumentLoaded", self)
+  
   -- Load the Communicator Package
   Communicator = Apollo.GetPackage("Communicator")
   
   if Communicator then
-    self.Communicator = pkgCommunicator.tPackage:new()
+    self.Communicator = Communicator.tPackage:new()
   else
     Apollo.AddAddonErrorText(self, "Could not load Communicator for some reason.")
   end
-  
-  self.xmlDoc = XmlDoc.CreateFromFile("Cozmotronic.xml")
-  self.xmlDoc:RegisterCallback("OnDocLoaded", self)
 end
 
 -- This function is called whenever the Addon has finished loading it's XML document.
 -- When this has completed, we will attempt to load the forms and register the required
 -- callbacks to make the Addon functional.
-function Cozmotronic:OnDocLoaded()
+function Cozmotronic:OnDocumentLoaded()
   if self.xmlDoc ~= nil and self.xmlDoc:IsLoaded() then
     -- Set up the main window of our Addon.
     self.wndMain = Apollo.LoadForm(self.xmlDoc, "wndMain", nil, self)
@@ -65,8 +67,10 @@ function Cozmotronic:OnDocLoaded()
     
     -- Set up our event handlers
     Apollo.RegisterSlashCommand("cozmo", "OnSlashCommand", self)
-    Apollo.RegisterEventHandler("ToggleCozmotronic", "OnToggleCozmotronic", self)
     Apollo.RegisterEventHandler("InterfaceMenuListHasLoaded", "OnInterfaceMenuListHasLoaded", self)
+    Apollo.RegisterEventHandler("ToggleCozmotronic", "OnToggleCozmotronic", self)
+  else
+    error("Failed to load XML")    
   end
 end
 
@@ -76,7 +80,7 @@ function Cozmotronic:OnSlashCommand(strCommand, strArgs)
   self.wndMain:Show(true)
 end
 
--- This function is called whenever the Interface Menulist has finished loaded and
+-- This function is called whenever the Interface MenuList has finished loaded and
 -- the relevant event is called. We use this opportunity to add ourselves to the
 -- list as well with a small button.
 function Cozmotronic:OnInterfaceMenuListHasLoaded()
@@ -164,6 +168,9 @@ function Cozmotronic:OnLoad(eLevel, tData)
   end
 end
 
+function Cozmotronic:OnConfigure()
+  Print("Configuration not implemented yet.")
+end
 -----------------------------------------------------------------------------------------------
 -- Cozmotronic Instance
 -----------------------------------------------------------------------------------------------
