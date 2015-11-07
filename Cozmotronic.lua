@@ -105,7 +105,7 @@ function Cozmotronic:new(o)
   end
   
   for i,v in pairs(ktNameplateOptions) do
-    o.NameplateOptions[i] = v
+    o.tNameplateOptions[i] = v
   end
   
   self.unitPlayer = GameLib.GetPlayerUnit()
@@ -511,12 +511,12 @@ function Cozmotronic:DrawNameplate(tNameplate)
     self:ScaleNameplate(tNameplate)
   end
   
-  self:DrawRPNamePlate(tNameplate)
+  self:DrawRPNameplate(tNameplate)
 end
 
 -- This function draws the RP nameplate on the screen for those who are actually running
 -- the Addon.
-function Cozmotronic:DrawRPNamePlate(tNameplate)
+function Cozmotronic:DrawRPNameplate(tNameplate)
   local tRPColors, tCSColors
   local rpFullname, rpTitle, rpStatus
   local unitName = tNameplate.unitName
@@ -533,9 +533,10 @@ function Cozmotronic:DrawRPNamePlate(tNameplate)
   
   if self.tNameplateOptions.bShowNames == true then
     strNameString = strNameString .. string.format("{name}%s{/name}\n", rpFullname)
+    
     if self.tNameplateOptions.bShowTitles == true and rpTitle ~= nil then
       strNameString = strNameString .. string.format("{title}%s{/title}", rpTitle)
-    end 
+    end
   end
   
   local strNamePlate = GeminiRichText:ParseMarkup(strNameString, self.tStyles)

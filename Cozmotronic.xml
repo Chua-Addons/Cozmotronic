@@ -19,7 +19,7 @@
     </Form>
     <Form Class="WorldFixedWindow" LAnchorPoint="SELF" LAnchorOffset="-15" TAnchorPoint="0" TAnchorOffset="-15" RAnchorPoint="0" RAnchorOffset="15" BAnchorPoint="0" BAnchorOffset="15" RelativeToClient="1" Font="Default" Text="" BGColor="UI_WindowBGDefault" TextColor="UI_WindowTextDefault" Template="CRB_TooltipSimple" TooltipType="OnCursor" Name="frmOverhead" Border="0" Picture="0" SwallowMouseClicks="1" Moveable="0" Escapable="0" Overlapped="1" TooltipColor="" Tooltip="" Sprite="" AutoDestroyWithUnit="0" UseTemplateBG="0" IgnoreMouse="1" DoNotBlockTooltip="1">
         <Control Class="Button" Base="Cozmotronic_Sprites:RPButton" Font="DefaultButton" ButtonType="PushButton" RadioGroup="" LAnchorPoint="0" LAnchorOffset="0" TAnchorPoint="0" TAnchorOffset="0" RAnchorPoint="1" RAnchorOffset="0" BAnchorPoint="1" BAnchorOffset="0" DT_VCENTER="1" DT_CENTER="1" BGColor="ffffffff" TextColor="UI_BtnTextDefault" NormalTextColor="UI_BtnTextDefault" PressedTextColor="UI_BtnTextDefault" FlybyTextColor="UI_BtnTextDefault" PressedFlybyTextColor="UI_BtnTextDefault" DisabledTextColor="UI_BtnTextDefault" TooltipType="OnCursor" Name="btn_RP" TooltipColor="" NoClip="1" WindowSoundTemplate="PushbuttonDigi03">
-            <Event Name="ButtonSignal" Function="CreateCharacterSheet"/>
+            <Event Name="ButtonSignal" Function="YourFunctionName"/>
         </Control>
         <Event Name="UnitOcclusionChanged" Function="OnUnitOcclusionChanged"/>
         <Event Name="WorldLocationOnScreen" Function="OnWorldLocationOnScreen"/>
