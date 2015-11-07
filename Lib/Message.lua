@@ -13,10 +13,12 @@ local Message = {}
 local JSON = Apollo.GetPackage("Lib:dkJSON-2.5").tPackage
 
 -- Constants
-Message.CodeEnumTypeRequest = 1
-Message.CodeEnumTypeReply = 2
-Message.CodeEnumTypeError = 3
-Message.CodeEnumTypeBroadcast = 4
+Message.CodeEnumType = {
+  Request = 1,
+  Reply = 2,
+  Error = 3,
+  Broadcast = 4
+}
 Message.ProtocolVersion = 1
 
 -- Constructor
@@ -27,7 +29,7 @@ function Message:new()
   
   self.__index = self
   self:SetProtocolVersion(Message.ProtocolVersion)
-  self:SetType(Message.CodeEnumTypeRequest)
+  self:SetType(Message.CodeEnumType.Request)
   self:SetOrigin(GameLib:GetPlayerUnit():GetName())
   
   return o
@@ -67,7 +69,7 @@ function Message:SetType(eMessageType)
     error("Message: Attempt to set unknown message type: "..tostring(eMessageType))
   end
   
-  if(eMessageType < Message.CodeEnumTypeRequest or eMessageType > Message.CodeEnumTypeError) then
+  if(eMessageType < Message.CodeEnumType.Request or eMessageType > Message.CodeEnumType.Error) then
     error("Message: Attempt to set unknown message type: "..tostring(eMessageType))
   end
   

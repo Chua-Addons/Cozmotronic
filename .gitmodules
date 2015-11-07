@@ -1,0 +1,6 @@
+[submodule "GeminiColor"]
+	path = GeminiColor
+	url = git@github.com:wildstarnasa/GeminiColor.git
+[submodule "GeminiRichText"]
+	path = GeminiRichText
+	url = git@github.com:wildstarnasa/GeminiRichText.git

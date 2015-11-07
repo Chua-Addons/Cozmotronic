@@ -440,7 +440,7 @@ function Communicator:QueryVersion(strTarget)
     local mMessage = Message:new()
     
     mMessage:SetDestination(strTarget)
-    mMessage:SetType(Message.Type_Request)
+    mMessage:SetType(Message.CodeEnumType.Request)
     mMessage:SetCommand("version")
     mMessage:SetPayload({""})
     
@@ -471,7 +471,7 @@ function Communicator:GetAllTraits(strTarget)
     local mMessage = Message:new()
     
     mMessage:SetDestination(strTarget)
-    mMessage:SetType(Message.Type_Request)
+    mMessage:SetType(Message.CodeEnumType.Request)
     mMessage:SetCommand(Communicator.Trait_All)
     
     self:SendMessage(mMessage)
@@ -537,7 +537,7 @@ function Communicator:ProcessMessage(mMessage)
   self:Log(Communicator.Debug_Comm, "Processing Message")
   
   -- Check if we're dealing with an error message.
-  if mMessage:GetType() == Message.Type_Error then
+  if mMessage:GetType() == Message.CodeEnumType.Error then
     local tData = self.tOutGoingRequests[mMessage:GetSequence()] or {}
     
     if tData.handler then
@@ -554,7 +554,7 @@ function Communicator:ProcessMessage(mMessage)
     local tPayload = mMessage:GetPayload() or {}
   
     -- This is something for Communicator itself.
-    if eType == Message.Type_Request then
+    if eType == Message.CodeEnumType.Request then
       if mMessage:GetCommand() == "get" then
         local aReplies = {}
         
@@ -590,10 +590,10 @@ function Communicator:ProcessMessage(mMessage)
         self:SendMessage(mReply)
       else
         local mReply = self:Reply(mMessage, { error = self.Error_UnimplementedCommand })
-        mReply:SetType(Message.Type_Error)
+        mReply:SetType(Message.CodeEnumType.Error)
         self:SendMessage(mReply)
       end
-    elseif eType == Message.Type_Reply then
+    elseif eType == Message.CodeEnumType.Reply then
       if mMessage:GetCommand() == "get" then
         for _, tTrait in ipairs(tPayload) do
           self:CacheTrait(mMessage:GetOrigin(), tTrait.trait, tTrait.data, tTrait.revision)
@@ -603,7 +603,7 @@ function Communicator:ProcessMessage(mMessage)
       elseif mMessage:GetCommand() == Communicator.Trait_All then
         self:StoreAllTraits(mMessage:GetOrigin(), tPayload)
       end
-    elseif eType == Message.Type_Error then
+    elseif eType == Message.CodeEnumType.Error then
       if(mMessage:GetCommand() == Communicator.Trait_All) then
         Event_FireGenericEvent("Communicator_PlayerUpdated", { player = mMessage:GetOrigin(), unsupported = true })
       end
@@ -615,14 +615,14 @@ function Communicator:ProcessMessage(mMessage)
       for _, fHandler in ipairs(aAddon) do
         fHandler(mMessage)
       end
-    elseif mMessage:GetType() == Message.Type_Request then
+    elseif mMessage:GetType() == Message.CodeEnumType.Request then
       local mError = self:Reply(mMessage, { type = Communicator.Error_UnimplementedProtocol })
-      mError:SetType(Message.Type_Error)
+      mError:SetType(Message.CodeEnumType.Error)
       self:SendMessage(mError)
     end
   end
     
-  if mMessage:GetType() == Message.Type_Reply or mMessage:GetType() == Message.Type_Error then
+  if mMessage:GetType() == Message.CodeEnumType.Reply or mMessage:GetType() == Message.CodeEnumType.Error then
     self.tOutGoingRequests[mMessage:GetSequence()] = nil
   end
 end
@@ -632,7 +632,7 @@ function Communicator:SendMessage(mMessage, fCallback)
     return
   end
   
-  if mMessage:GetType() ~= Message.Type_Error and mMessage:GetType() ~= Message.Type_Reply then
+  if mMessage:GetType() ~= Message.CodeEnumType.Error and mMessage:GetType() ~= Message.CodeEnumType.Reply then
     self.nSequenceCounter = tonumber(self.nSequenceCounter or 0) + 1
     mMessage:SetSequence(self.nSequenceCounter)
   end
@@ -703,7 +703,7 @@ function Communicator:OnTimerTimeout()
       }
       local mError = self:Reply(tData.message, tPayload)
       
-      mError:SetType(Message.Type_Error)
+      mError:SetType(Message.CodeEnumType.Error)
       
       self:ProcessMessage(mError)
       self.tOutGoingRequests[nSequence] = nil
