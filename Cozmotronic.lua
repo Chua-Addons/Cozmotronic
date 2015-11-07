@@ -467,9 +467,9 @@ function Cozmotronic:DrawRPNamePlate(tNameplate)
   local wndData = wndNameplate:FindChild("wnd_Data")
   local btnRP = wndNameplate:FindChild("btn_RP")
   
-  rpFullname = self.Communicator:GetTrait(unitName,self.Communicator.Trait_Name) or unitName
-  rpTitle = self.Communicator:FetchTrait(unitName, self.Communicator.Trait_NameAndTitle)
-  rpStatus = self.Communicator:GetTrait(unitName, self.Communicator.Trait_RPFlag)
+  rpFullname = self.Communicator:GetTrait(unitName,self.Communicator.CodeEnumTrait.Name) or unitName
+  rpTitle = self.Communicator:FetchTrait(unitName, self.Communicator.CodeEnumTrait.NameAndTitle)
+  rpStatus = self.Communicator:GetTrait(unitName, self.Communicator.CodeEnumTrait.RPFlag)
   
   local strNameString = ""
   

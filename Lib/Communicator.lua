@@ -35,12 +35,16 @@ end
 ---------------------------------------------------------------------------------------------------
 -- Constants
 ---------------------------------------------------------------------------------------------------
-Communicator.Error_UnimplementedProtocol = 1
-Communicator.Error_UnimplementedCommand = 2
-Communicator.Error_RequestTimedOut = 3
-Communicator.Debug_Errors = 1
-Communicator.Debug_Comm = 2
-Communicator.Debug_Access = 3
+Communicator.CodeEnumError = {
+  UnimplementedProtocol = 1,
+  UnimplementedCommand = 2,
+  RequestTimedOut = 3
+}
+Communicator.CodeEnumDebug = {
+  Errors = 1,
+  Comm = 2,
+  Access = 3,
+}
 Communicator.TTL_Trait = 120
 Communicator.TTL_Version = 300
 Communicator.TTL_Flood = 30
@@ -48,13 +52,15 @@ Communicator.TTL_Channel = 60
 Communicator.TTL_Packet = 15
 Communicator.TTL_GetAll = 120
 Communicator.TTL_CacheDie = 604800
-Communicator.Trait_Name = "full_name"
-Communicator.Trait_NameAndTitle = "title"
-Communicator.Trait_RPFlag = "rp_flag"
-Communicator.Trait_RPState = "rp_state"
-Communicator.Trait_Description = "description"
-Communicator.Trait_Biography = "bio"
-Communicator.Trait_All = "getall"
+Communicator.CodeEnumTrait = {
+  Name = "full_name",
+  NameAndTitle = "title",
+  RPFlag = "rp_flag",
+  RPState = "rp_state",
+  Description = "description",
+  Biography = "bio",
+  All = "getall"
+}
 
 -- This is the constructor of Communicator.
 -- We use this to create a new instance and set the initial state
@@ -259,11 +265,11 @@ end
 function Communicator:GetTrait(strTarget, strTrait)
   local strResult = nil
   
-  if strTrait == Communicator.Trait_Name then
-    strResult = self:FetchTrait(strTarget, Communicator.Trait_Name) or strTarget
-  elseif strTrait == Communicator.Trait_NameAndTitle then
-    local strName = self:FetchTrait(strTarget, Communicator.Trait_Name)
-    strResult = self:FetchTrait(strTarget, Communicator.Trait_NameAndTitle)
+  if strTrait == Communicator.CodeEnumTrait.Name then
+    strResult = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.Name) or strTarget
+  elseif strTrait == Communicator.CodeEnumTrait.NameAndTitle then
+    local strName = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.Name)
+    strResult = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.NameAndTitle)
     
     if strResult == nil then
       strResult = strName
@@ -276,17 +282,17 @@ function Communicator:GetTrait(strTarget, strTrait)
         strResult = strResult.." "..(strName or strTarget)
       end
     end
-  elseif strTrait == Communicator.Trait_Description then
-    strResult = self:FetchTrait(strTarget, Communicator.Trait_Description)
+  elseif strTrait == Communicator.CodeEnumTrait.Description then
+    strResult = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.Description)
    
     if strResult ~= nil then
       strResult = self:TruncateString(strResult, Communicator.MaxLength)
     end
-  elseif strTrait == Communicator.Trait_RPState then
-    local rpFlags = self:FetchTrait(strTarget, Communicator.Trait_RPState) or 0
+  elseif strTrait == Communicator.CodeEnumTrait.RPState then
+    local rpFlags = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.RPState) or 0
     strResult = self:FlagsToString(rpFlags)
-  elseif strTrait == Communicator.Trait_Biography then
-    strResult = self:FetchTrait(strTarget, Communicator.Trait_Biography)
+  elseif strTrait == Communicator.CodeEnumTrait.Biography then
+    strResult = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.Biography)
   else
     strResult = self:FetchTrait(strTarget, strTrait)
   end
@@ -295,9 +301,9 @@ function Communicator:GetTrait(strTarget, strTrait)
 end
 
 function Communicator:SetRPFlag(flag, bSet)
-  local nState, nRevision = self:GetLocalTrait(Communicator.Trait_RPFlag)
+  local nState, nRevision = self:GetLocalTrait(Communicator.CodeEnumTrait.RPFlag)
   nState = self:SetBitFlag(flag, bSet)
-  self:SetLocalTrait(Communicator.Trait_RPFlag, nState)
+  self:SetLocalTrait(Communicator.CodeEnumTrait.RPFlag, nState)
 end
 
 -- This function is called on a regular basis and processes the messages currently stored in
@@ -305,7 +311,7 @@ end
 function Communicator:OnTimerTraitQueue()
   -- Loop over every message in the Queue.
   for strTarget, aRequests in pairs(self.tPendingPlayerTraitRequests) do
-    self:Log(Communicator.Debug_Comm, "Sending: " .. table.getn(aRequests) .. " queued trait requests to " .. strTarget)
+    self:Log(Communicator.CodeEnumDebug.Comm, "Sending: " .. table.getn(aRequests) .. " queued trait requests to " .. strTarget)
     
     local mMessage = Message:new()
     
@@ -328,7 +334,7 @@ function Communicator:FetchTrait(strTarget, strTraitName)
   -- the localTraits cache for the information and return it when avaialble.
   if strTarget == nil or strTarget == self:GetOriginName() then
     local tTrait = self.tLocalTraits[strTraitName] or {}
-    self:Log(Communicator.Debug_Access, string.format("Fetching own %s: (%d) %s", strTraitName, tTrait.revision or 0, tostring(tTrait.data)))
+    self:Log(Communicator.CodeEnumDebug.Access, string.format("Fetching own %s: (%d) %s", strTraitName, tTrait.revision or 0, tostring(tTrait.data)))
     return tTrait.data, tTrait.revision
   else
     -- Check the local cached player data for the information
@@ -336,7 +342,7 @@ function Communicator:FetchTrait(strTarget, strTraitName)
     local tTrait = tPlayerTraits[strTraitName] or {}
     local nTTL = Communicator.TTL_Trait
     
-    self:Log(Communicator.Debug_Access, string.format("Fetching %s's %s: (%d) %s", strTarget, strTraitName, tTrait.revision or 0, tostring(tTrait.data)))
+    self:Log(Communicator.CodeEnumDebug.Access, string.format("Fetching %s's %s: (%d) %s", strTarget, strTraitName, tTrait.revision or 0, tostring(tTrait.data)))
     
     -- Check if the TTL is set correctly, and do so if not.    
     if (tTrait.revision or 0) == 0 then
@@ -355,7 +361,7 @@ function Communicator:FetchTrait(strTarget, strTraitName)
       local tPendingPlayerQuery = self.tPendingPlayerTraitRequests[strTarget] or {}
       local tRequest = { trait = strTraitName, revision = tTrait.revision or 0 }
       
-    self:Log(Communicator.Debug_Access, string.format("Building up query to retrieve %s's %s:", strTarget, strTraitName))
+    self:Log(Communicator.CodeEnumDebug.Access, string.format("Building up query to retrieve %s's %s:", strTarget, strTraitName))
       table.insert(tPendingPlayerQuery, tRequest)
       self.tPendingPlayerTraitRequests[strTarget] = tPendingPlayerQuery
       Apollo.CreateTimer("Communicator_TraitQueue", 1, false)
@@ -373,7 +379,7 @@ function Communicator:CacheTrait(strTarget, strTrait, data, nRevision)
       data = data,
       revision = nRevision 
     }
-    self:Log(Communicator.Debug_Access, string.format("Caching own %s: (%d) %s", strTrait, nRevision or 0, tostring(data)))
+    self:Log(Communicator.CodeEnumDebug.Access, string.format("Caching own %s: (%d) %s", strTrait, nRevision or 0, tostring(data)))
     Event_FireGenericEvent("Communicator_TraitChanged", { player = self:GetOriginName(), trait = strTrait, data = data, revision = nRevision })
   else
     local tPlayerTraits = self.tCachedPlayerData[strTarget] or {}
@@ -389,7 +395,7 @@ function Communicator:CacheTrait(strTarget, strTrait, data, nRevision)
     
     tPlayerTraits[strTrait] = { data = data, revision = nRevision, time = os.time() }
     self.tCachedPlayerData[strTarget] = tPlayerTraits
-    self:Log(Communicator.Debug_Access, string.format("Caching %s's %s: (%d) %s", strTarget, strTrait, nRevision or 0, tostring(data)))
+    self:Log(Communicator.CodeEnumDebug.Access, string.format("Caching %s's %s: (%d) %s", strTarget, strTrait, nRevision or 0, tostring(data)))
     Event_FireGenericEvent("Communicator_TraitChanged", { player = strTarget, trait = strTrait, data = data, revision = nRevision })
   end
 end  
@@ -401,7 +407,7 @@ function Communicator:SetLocalTrait(strTrait, data)
     return
   end
   
-  if strTrait == Communicator.Trait_RPState or strTrait == Communicator.Trait_RPFlag then
+  if strTrait == Communicator.CodeEnumTrait.RPState or strTrait == Communicator.CodeEnumTrait.RPFlag then
     revision = 0 
   else
     revision = (revision or 0) + 1 
@@ -434,7 +440,7 @@ function Communicator:QueryVersion(strTarget)
   end
   
   self:MarkAddonProtocolCommand(strTarget, nil, "version")
-  self:Log(Communicator.Debug_Access, string.format("Fetching %s's version", strTarget))
+  self:Log(Communicator.CodeEnumDebug.Access, string.format("Fetching %s's version", strTarget))
   
   if tVersionInfo.version == nil or (os.time() - (tVersionInfo.time or 0) > Communicator.TTL_Version) then
     local mMessage = Message:new()
@@ -459,23 +465,23 @@ function Communicator:StoreVersion(strTarget, strVersion, aProtocols)
   tPlayerTraits["__rpVersion"] = { version = strVersion, protocols = aProtocols, time = os.time() }
   self.tCachedPlayerData[strTarget] = tPlayerTraits
   
-  self:Log(Communicator.Debug_Access, string.format("Storing %s's version: %s", strTarget, strVersion))
+  self:Log(Communicator.CodeEnumDebug.Access, string.format("Storing %s's version: %s", strTarget, strVersion))
   Event_FireGenericEvent("Communicator_VersionUpdated", { player = strTarget, version = strVersion, protocols = aProtocols })
 end
 
 function Communicator:GetAllTraits(strTarget)
   local tPlayerTraits = self.tCachedPlayerData[strTarget] or {}
-  self:Log(Communicator.Debug_Access, string.format("Fetching %s's full trait set (version: %s)", strTarget, Communicator.Version))
+  self:Log(Communicator.CodeEnumDebug.Access, string.format("Fetching %s's full trait set (version: %s)", strTarget, Communicator.Version))
   
-  if(self:TimeSinceLastAddonProtocolCommand(strTarget, nil, Communicator.Trait_All) > Communicator.TTL_GetAll) then
+  if(self:TimeSinceLastAddonProtocolCommand(strTarget, nil, Communicator.CodeEnumTrait.All) > Communicator.TTL_GetAll) then
     local mMessage = Message:new()
     
     mMessage:SetDestination(strTarget)
     mMessage:SetType(Message.CodeEnumType.Request)
-    mMessage:SetCommand(Communicator.Trait_All)
+    mMessage:SetCommand(Communicator.CodeEnumTrait.All)
     
     self:SendMessage(mMessage)
-    self:MarkAddonProtocolCommand(strTarget, nil, Communicator.Trait_All)
+    self:MarkAddonProtocolCommand(strTarget, nil, Communicator.CodeEnumTrait.All)
   end
   
   local tResult = {}
@@ -490,7 +496,7 @@ function Communicator:GetAllTraits(strTarget)
 end
 
 function Communicator:StoreAllTraits(strTarget, tPlayerTraits)
-  self:Log(Communicator.Debug_Access, string.format("Storing new trait cache for %s", strTarget))
+  self:Log(Communicator.CodeEnumDebug.Access, string.format("Storing new trait cache for %s", strTarget))
   self.tCachedPlayerData[strTarget] = tPlayerTraits
   
   local tResult = {}
@@ -534,7 +540,7 @@ end
 -- Processes the provided message, parsing the contents and taking the required
 -- action based on the data stored inside.
 function Communicator:ProcessMessage(mMessage)
-  self:Log(Communicator.Debug_Comm, "Processing Message")
+  self:Log(Communicator.CodeEnumDebug.Comm, "Processing Message")
   
   -- Check if we're dealing with an error message.
   if mMessage:GetType() == Message.CodeEnumType.Error then
@@ -585,11 +591,11 @@ function Communicator:ProcessMessage(mMessage)
         
         local mReply = self:Reply(mMessage, { version = Communicator.Version, protocols = aProtocols })
         self:SendMessage(mReply)
-      elseif mMessage:GetCommand() == Communicator.Trait_All then
+      elseif mMessage:GetCommand() == Communicator.CodeEnumTrait.All then
         local mReply = self:Reply(mMessage, self.tLocalTraits)
         self:SendMessage(mReply)
       else
-        local mReply = self:Reply(mMessage, { error = self.Error_UnimplementedCommand })
+        local mReply = self:Reply(mMessage, { error = self.CodeEnumError.UnimplementedCommand })
         mReply:SetType(Message.CodeEnumType.Error)
         self:SendMessage(mReply)
       end
@@ -600,11 +606,11 @@ function Communicator:ProcessMessage(mMessage)
         end
       elseif mMessage:GetCommand() == "version" then
         self:StoreVersion(mMessage:GetOrigin(), tPayload.version, tPayload.protocols)
-      elseif mMessage:GetCommand() == Communicator.Trait_All then
+      elseif mMessage:GetCommand() == Communicator.CodeEnumTrait.All then
         self:StoreAllTraits(mMessage:GetOrigin(), tPayload)
       end
     elseif eType == Message.CodeEnumType.Error then
-      if(mMessage:GetCommand() == Communicator.Trait_All) then
+      if(mMessage:GetCommand() == Communicator.CodeEnumTrait.All) then
         Event_FireGenericEvent("Communicator_PlayerUpdated", { player = mMessage:GetOrigin(), unsupported = true })
       end
     end
@@ -616,7 +622,7 @@ function Communicator:ProcessMessage(mMessage)
         fHandler(mMessage)
       end
     elseif mMessage:GetType() == Message.CodeEnumType.Request then
-      local mError = self:Reply(mMessage, { type = Communicator.Error_UnimplementedProtocol })
+      local mError = self:Reply(mMessage, { type = Communicator.CodeEnumError.UnimplementedProtocol })
       mError:SetType(Message.CodeEnumType.Error)
       self:SendMessage(mError)
     end
@@ -697,7 +703,7 @@ function Communicator:OnTimerTimeout()
   for nSequence, tData in pairs(self.tOutGoingRequests) do
     if (nNow - tData.time) > Communicator.TTL_Packet then
       local tPayload = {
-        error = Communicator.Error_RequestTimedOut, 
+        error = Communicator.CodeEnumError.RequestTimedOut, 
         destination = tData.message:GetDestination(),
         localError = true 
       }
