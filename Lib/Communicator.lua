@@ -89,7 +89,7 @@ function Communicator:OnLoad()
   self.tCachedPlayerChannels = {}
   self.bTimeoutRunning = false
   self.nSequenceCounter = 0
-  self.nDebugLevel = 3
+  self.nDebugLevel = 0
   self.qPendingMessages = MessageQueue:new()
   self.kstrRPStateStrings = {
     "In-Character, Not Available for RP",
