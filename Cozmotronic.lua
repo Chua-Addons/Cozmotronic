@@ -1,7 +1,47 @@
 require "Window"
+require "GameLib"
+require "Unit"
 require "ICCommLib"
 require "ICComm"
 
+-----------------------------------------------------------------------------------------------
+-- Constants
+-----------------------------------------------------------------------------------------------
+local ktNameplateOptions = {
+  nXoffset = 0,
+  nYoffset = -50,
+  bShowMyNameplate = true,
+  bShowNames = true,
+  bShowTitles = true,
+  bScaleNameplates = false,
+  nNameplateDistance = 50,
+  nAnchor = 1,
+  bShowTargetNameplate = false,
+}
+
+local ktStateColors = {
+  [0] = "ffffffff", -- white
+  [1] = "ffffff00", --yellow
+  [2] = "ff0000ff", --blue
+  [3] = "ff00ff00", --green
+  [4] = "ffff0000", --red
+  [5] = "ff800080", --purple
+  [6] = "ff00ffff", --cyan
+  [7] = "ffff00ff", --magenta
+}
+
+local ktStyles = {
+  { tag = "h1", font = "CRB_Interface14_BBO", color = "FF00FA9A", align = "Center" },
+  { tag = "h2", font = "CRB_Interface12_BO", color = "FF00FFFF", align = "Left" },
+  { tag = "h3", font = "CRB_Interface12_I", color = "FF00FFFF", align = "Left" },
+  { tag = "p", font = "CRB_Interface12", color = "FF00FFFF", align = "Left"},
+  { tag = "li", font = "CRB_Interface12", color = "FF00FFFF", align = "Left", bullet = "●", indent = "  " },
+  { tag = "alien", font = "CRB_AlienMedium", color = "FF00FFFF", align = "Left" },
+  { tag = "name", font = "CRB_Interface12_BO", color = "FF00FF7F", align = "Center" },
+  { tag = "title", font = "CRB_Interface10", color = "FF00FFFF", align = "Center" },
+  { tag = "csentry", font = "CRB_Header13_O", color = "FF00FFFF", align = "Left" },
+  { tag = "cscontents", font = "CRB_Interface12_BO", color = "FF00FF7F", align = "Left" },
+}
 -----------------------------------------------------------------------------------------------
 -- Local Functions
 -----------------------------------------------------------------------------------------------
@@ -48,9 +88,27 @@ function Cozmotronic:new(o)
   
   -- Configure the initial state of the Addon
   o.bInCharacter = true
+  o.bHideAllNameplates = false
   o.tNameplateOptions = {}
+  o.tStyles = {}
+  o.tStateColors = {}
   o.arUnit2Nameplate = {}
   o.arWnd2Nameplate = {}
+  
+  -- Copy over the data from the constants
+  for i,v in pairs(ktStyles) do
+    o.tStyles[i] = v
+  end
+  
+  for i,v in pairs(ktStateColors) do
+    o.tStateColors[i] = v
+  end
+  
+  for i,v in pairs(ktNameplateOptions) do
+    o.NameplateOptions[i] = v
+  end
+  
+  self.unitPlayer = GameLib.GetPlayerUnit()
   
   return o
 end
@@ -264,7 +322,7 @@ function Cozmotronic:OnUnitCreated(unitCreated)
   if unitCreated:IsACharacter() then
     for i, strPlayerName in pairs(self.Communicator:GetCachedPlayerList()) do
       if unitCreated:GetName() == strPlayerName then
-        self:OnCommunicaorCallback({ player = unitCreated:GetName() })
+        self:OnCommunicatorCallback({ player = unitCreated:GetName() })
       end
     end
     
@@ -293,9 +351,9 @@ end
 -- Every time Communicator updates information, the Event "Communicator_VersionUpdated" is raised.
 -- When listening to that event, this function is called, and allows us to process the new data
 -- that has been received.
-function Cozmotronic:OnCommuniatorCallback(tArgs)
-  local strUnitName = tArgs.player
-  local unit = GameLib:GetPlayerUnitByName(strUnitName)
+function Cozmotronic:OnCommunicatorCallback(tArgs)
+  local strUnitName = tArgs.player  
+  local unit = GameLib.GetPlayerUnitByName(strUnitName)
   
   if unit == nil then
     return
@@ -327,7 +385,7 @@ function Cozmotronic:OnCommuniatorCallback(tArgs)
   wnd:SetData({ unitName = strUnitName, unitOwner = unit })
   
   self.arUnit2Nameplate[idUnit] = tNameplate
-  self.arWnd2nameplate[wnd:GetId()] = tNameplate
+  self.arWnd2Nameplate[wnd:GetId()] = tNameplate
   
   self:DrawNameplate(tNameplate)
 end
@@ -494,10 +552,10 @@ function Cozmotronic:DrawRPNamePlate(tNameplate)
   
   xmlTooltip:StartTooltip(Tooltip.TooltipWidth)
   
-  if self.tNamePlateOptions.bShowNames == false then
+  if self.tNameplateOptions.bShowNames == false then
     xmlTooltip:AddLine(rpFullname, "FF009999", "CRB_InterfaceMedium_BO")
     
-    if self.tNamePlateOptions.bShowTitles == true and rpTitle ~= nil then
+    if self.tNameplateOptions.bShowTitles == true and rpTitle ~= nil then
       xmlTooltip:AddLine(rpTitle, "FF99FFFF", "CRB_InterfaceMedium_BO")
     end
     
