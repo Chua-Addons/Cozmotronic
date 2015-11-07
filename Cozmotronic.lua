@@ -3,7 +3,7 @@ require "ICCommLib"
 require "ICComm"
 
 local Cozmotronic = {}
-local Communicator = Apollo.GetPackage("Communicator").tPackage
+local Communicator = {}
 
 -- The constructor of our Addon.
 -- We use this to create a new instance of the Addon and configure 
@@ -35,7 +35,15 @@ end
 -- This function is called by the Client when the Addon has been registered and is ready
 -- to be loaded. We will use this to trigger the XML Load and build up the forms.
 function Cozmotronic:OnLoad()
-  self.Communicator = Communicator:new()
+  -- Load the Communicator Package
+  Communicator = Apollo.GetPackage("Communicator")
+  
+  if Communicator then
+    self.Communicator = pkgCommunicator.tPackage:new()
+  else
+    Apollo.AddAddonErrorText(self, "Could not load Communicator for some reason.")
+  end
+  
   self.xmlDoc = XmlDoc.CreateFromFile("Cozmotronic.xml")
   self.xmlDoc:RegisterCallback("OnDocLoaded", self)
 end
