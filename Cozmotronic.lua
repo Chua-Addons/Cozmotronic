@@ -42,6 +42,7 @@ local ktStyles = {
   { tag = "csentry", font = "CRB_Header13_O", color = "FF00FFFF", align = "Left" },
   { tag = "cscontents", font = "CRB_Interface12_BO", color = "FF00FF7F", align = "Left" },
 }
+
 -----------------------------------------------------------------------------------------------
 -- Local Functions
 -----------------------------------------------------------------------------------------------
@@ -272,7 +273,27 @@ end
 -- in the main menu. Here we will show our configure window and allow the user to manipulate
 -- some of the core settings for Cozmotronic.
 function Cozmotronic:OnConfigure()
-  Print("Configuration not implemented yet.")
+  self.wndOptions = Apollo.LoadForm(self.xmlDoc, "OptionsForm", nil, self)
+  
+  if self.wndOptions == nil then
+    Apollo.AddAddonErrorText(self, "Could not load the Options Window for some reason.")
+    return
+  end
+  
+  -- Load the Settings of the Window and set the correct values to all inputs.
+  local wndNameplateOptions = self.wndOptions:FindChild("wndNameplateOptions")
+  
+  wndNameplateOptions:FindChild("chkShowOwnNameplate"):SetCheck(self.tNameplateOptions.bShowMyNameplate)
+  wndNameplateOptions:FindChild("chkShowNames"):SetCheck(self.tNameplateOptions.bShowNames)
+  wndNameplateOptions:FindChild("chkShowTitles"):SetCheck(self.tNameplateOptions.bShowTitles)
+  wndNameplateOptions:FindChild("chkScaleNameplates"):SetCheck(self.tNameplateOptions.bScaleNameplates)
+  wndNameplateOptions:FindChild("chkShowTargetNameplate"):SetCheck(self.tNameplateOptions.bShowTargetNameplate)
+  wndNameplateOptions:FindChild("input_Xoffset"):SetText(self.tNameplateOptions.nXoffset)
+  wndNameplateOptions:FindChild("input_Yoffset"):SetText(self.tNameplateOptions.nYoffset)
+  wndNameplateOptions:FindChild("input_NameplateDistance"):SetText(self.tNameplateOptions.nNameplateDistance)
+  wndNameplateOptions:FindChild("input_Anchor"):SetText(self.tNameplateOptions.nAnchor)
+  
+  self.wndOptions:Show(true, false)
 end
 
 -- This function will be called every time the timer tmrUpdateMyNameplate finished it's count.
@@ -583,6 +604,34 @@ function Cozmotronic:ScaleNameplate(tNameplate)
   end
   
   wndNameplate:SetScale(fDistancePercentage)
+end
+
+function Cozmotronic:ClearCache()
+  self.Communicator:ClearCachedPlayerList()
+end
+-----------------------------------------------------------------------------------------------
+-- Form and Button Functions
+-----------------------------------------------------------------------------------------------
+function Cozmotronic:OnBtnClearCacheOptionsForm(wndHandler, wndControl, eMouseButton)
+  self:ClearCache()
+end
+
+function Cozmotronic:OnBtnSaveOptionsForm(wndHandler, wndControl, eMouseButton)
+  local wndNameplateOptions = self.wndOptions:FindChild("wndNameplateOptions")
+  
+  self.tNameplateOptions = {
+    bShowMyNameplate = wndNameplateOptions:FindChild("chkShowOwnNameplate"):IsChecked(),
+    bShowNames = wndNameplateOptions:FindChild("chkShowNames"):IsChecked(),
+    bShowTitles = wndNameplateOptions:FindChild("chkShowTitles"):IsChecked(),
+    bScaleNameplates = wndNameplateOptions:FindChild("chkScaleNameplates"):IsChecked(),
+    bShowTargetNameplate = wndNameplateOptions:FindChild("chkShowTargetNameplate"):IsChecked(),
+    nXoffset = tonumber(wndNameplateOptions:FindChild("input_Xoffset"):GetText() or ktNameplateOptions.nXoffset),
+    nYoffset = tonumber(wndNameplateOptions:FindChild("input_Yoffset"):GetText() or ktNameplateOptions.nYoffset),
+    nNameplateDistance = tonumber(wndNameplateOptions:FindChild("input_NameplateDistance"):GetText() or ktNameplateOptions.nNameplateDistance),
+    nAnchor = tonumber(wndNameplateOptions:FindChild("input_Anchor"):GetText() or ktNameplateOptions.nAnchor)
+  }
+  
+  self.wndOptions:Show(false, false)
 end
 -----------------------------------------------------------------------------------------------
 -- Cozmotronic Instance
