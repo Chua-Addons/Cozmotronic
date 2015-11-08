@@ -43,6 +43,15 @@ local ktStyles = {
   { tag = "cscontents", font = "CRB_Interface12_BO", color = "FF00FF7F", align = "Left" },
 }
 
+local karRaceToString = {
+  [GameLib.CodeEnumRace.Human] = Apollo.GetString("RaceHuman"),
+  [GameLib.CodeEnumRace.Granok] = Apollo.GetString("RaceGranok"),
+  [GameLib.CodeEnumRace.Aurin] = Apollo.GetString("RaceAurin"),
+  [GameLib.CodeEnumRace.Draken] = Apollo.GetString("RaceDraken"),
+  [GameLib.CodeEnumRace.Mechari] = Apollo.GetString("RaceMechari"),
+  [GameLib.CodeEnumRace.Chua] = Apollo.GetString("RaceChua"),
+  [GameLib.CodeEnumRace.Mordesh] = Apollo.GetString("CRB_Mordesh"),
+}
 -----------------------------------------------------------------------------------------------
 -- Local Functions
 -----------------------------------------------------------------------------------------------
@@ -146,7 +155,7 @@ function Cozmotronic:OnDocumentLoaded()
   
   if self.xmlDoc ~= nil and self.xmlDoc:IsLoaded() then
     -- Set up the main window of our Addon.
-    self.wndMain = Apollo.LoadForm(self.xmlDoc, "wndMain", nil, self)
+    self.wndMain = Apollo.LoadForm(self.xmlDoc, "MainForm", nil, self)
     
     if self.wndMain == nil then
       Apollo.AddAddonErrorText(self, "Could not load the main window for some reason.")
@@ -178,7 +187,8 @@ end
 -- This function is called whenever the user types /cozmo.
 -- We will use this to properly display the main window.
 function Cozmotronic:OnSlashCommand(strCommand, strArgs)
-  self.wndMain:Show(true)
+  self.unitSelected = GameLib.GetPlayerUnit()
+  self:LoadMainWindow()
 end
 
 -- This function is called whenever the Interface MenuList has finished loaded and
@@ -388,7 +398,7 @@ function Cozmotronic:OnCommunicatorCallback(tArgs)
     return
   end
   
-  local wnd = Apollo.LoadForm(self.xmlDoc, "frmOverhead", "InWorldHudStratum", self)
+  local wnd = Apollo.LoadForm(self.xmlDoc, "OverheadForm", "InWorldHudStratum", self)
   
   wnd:Show(false, true)
   wnd:SetUnit(unit, self.tNameplateOptions.nAnchor)
@@ -611,9 +621,66 @@ end
 function Cozmotronic:ClearCache()
   self.Communicator:ClearCachedPlayerList()
 end
+
+-- Loads the main window to be displayed for the specified target.
+-- If the specified target cannot be found, then we will assume we're displaying
+-- our own information.
+function Cozmotronic:LoadMainWindow(strTarget)
+  local wndProfile = self.wndMain:FindChild("wndProfile")
+  local strFirstName, strLastName, strTitle, strOccupation, strGender, strRace, strAge, strHeight, strWidth, strWeight, strBuild
+  
+  if strTarget == nil or strTarget == GameLib:GetPlayerUnit():GetName() then
+    strFirstName = self.Communicator:GetLocalTrait("first_name") or ""
+    strLastName = self.Communicator:GetLocalTrait("last_name") or ""
+    strTitle = self.Communicator:GetLocalTrait("title") or ""
+    strOccupation = self.Communicator:GetLocalTrait("occupation") or ""
+    strGender = self.Communicator:GetLocalTrait("gender") or ""
+    strRace = karRaceToString[self.unitPlayer:GetRaceId()]
+    strAge = self.Communicator:GetLocalTrait("age") or ""
+    strHeight = self.Communicator:GetLocalTrait("height") or ""
+    strWidth = self.Communicator:GetLocalTrait("width") or ""
+    strWeight = self.Communicator:GetLocalTrait("weight") or ""
+    strBuild = self.Communicator:GetLocalTrait("build") or ""
+  else
+    strFirstName = self.Communicator:GetTrait("first_name", strTarget) or ""
+    strLastName = self.Communicator:GetTrait("last_name", strTarget) or ""
+    strTitle = self.Communicator:GetTrait("title", strTarget) or ""
+    strOccupation = self.Communicator:GetTrait("occupation", strTarget) or ""
+    strGender = self.Communicator:GetTrait("gender", strTarget) or ""
+    strRace = self.Communicator:GetTrait("race", strTarget) or ""
+    strAge = self.Communicator:GetTrait("age", strTarget) or ""
+    strHeight = self.Communicator:GetTrait("height", strTarget) or ""
+    strWidth = self.Communicator:GetTrait("width", strTarget) or ""
+    strWeight = self.Communicator:GetTrait("weight", strTarget) or ""
+    strBuild = self.Communicator:GetTrait("build", strTarget) or ""
+    
+    wndProfile:FindChild("btnSave"):Show(false, false)
+  end
+  
+  -- Set all data on the form.  
+  wndProfile:FindChild("input_FirstName"):SetText(strFirstName)
+  wndProfile:FindChild("input_LastName"):SetText(strLastName)
+  wndProfile:FindChild("input_Title"):SetText(strTitle)
+  wndProfile:FindChild("input_Occupation"):SetText(strOccupation)
+  wndProfile:FindChild("input_Gender"):SetText(strGender)
+  wndProfile:FindChild("input_Race"):SetText(strRace)
+  wndProfile:FindChild("input_Age"):SetText(strAge)
+  wndProfile:FindChild("input_Height"):SetText(strHeight)
+  wndProfile:FindChild("input_Width"):SetText(strWidth)
+  wndProfile:FindChild("input_Weight"):SetText(strWeight)
+  wndProfile:FindChild("input_Build"):SetText(strBuild)
+  
+  self.wndMain:Show(true, false)
+end
 -----------------------------------------------------------------------------------------------
 -- Form and Button Functions
 -----------------------------------------------------------------------------------------------
+function Cozmotronic:OnRPButtonClick(wndHandler, wndControl, eMouseButton)
+  local tUnit = wndControl:GetParent():GetData()
+  
+  self:LoadMainWindow(tUnit.unitName)
+end
+
 function Cozmotronic:OnBtnClearCacheOptionsForm(wndHandler, wndControl, eMouseButton)
   self:ClearCache()
 end
@@ -634,6 +701,39 @@ function Cozmotronic:OnBtnSaveOptionsForm(wndHandler, wndControl, eMouseButton)
   }
   
   self.wndOptions:Show(false, false)
+end
+
+-- This function is called whenever the user clicks on the green save button of the Mainform.
+-- When this happens, we will save ALL data that has been entered for the current player.
+function Cozmotronic:OnBtnSaveMainForm(wndHanlder, wndControl, eMouseButton)
+  if self.unitSelected == nil or self.unitSelected == self.unitPlayer then
+    local wndProfile = self.wndMain:FindChild("wndProfile")
+    local strFirstName = wndProfile:FindChild("input_FirstName"):GetText()
+    local strLastName = wndProfile:FindChild("input_LastName"):GetText()
+    local strTitle = wndProfile:FindChild("input_Title"):GetText()
+    local strOccupation = wndProfile:FindChild("input_Occupation"):GetText()
+    local strGender = wndProfile:FindChild("input_Gender"):GetText()
+    local strRace = wndProfile:FindChild("input_Race"):GetText()
+    local strAge = wndProfile:FindChild("input_Age"):GetText()
+    local strHeight = wndProfile:FindChild("input_Height"):GetText()
+    local strWidth = wndProfile:FindChild("input_Width"):GetText()
+    local strWeight = wndProfile:FindChild("input_Weight"):GetText()
+    local strBuild = wndProfile:FindChild("input_Build"):GetText()
+    
+    self.Communicator:SetLocalTrait("first_name", strFirstName)
+    self.Communicator:SetLocalTrait("last_name", strLastName)
+    self.Communicator:SetLocalTrait("title", strTitle)
+    self.Communicator:SetLocalTrait("occupation", strOccupation)
+    self.Communicator:SetLocalTrait("gender", strGender)
+    self.Communicator:SetLocalTrait("race", strRace)
+    self.Communicator:SetLocalTrait("age", strAge)
+    self.Communicator:SetLocalTrait("height", strHeight)
+    self.Communicator:SetLocalTrait("width", strWidth)
+    self.Communicator:SetLocalTrait("weight", strWeight)
+    self.Communicator:SetLocalTrait("build", strBuild)
+    
+    self.wndMain:Show(false, false)
+  end
 end
 -----------------------------------------------------------------------------------------------
 -- Cozmotronic Instance
