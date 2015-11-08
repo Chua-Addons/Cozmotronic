@@ -627,7 +627,8 @@ end
 -- our own information.
 function Cozmotronic:LoadMainWindow(strTarget)
   local wndProfile = self.wndMain:FindChild("wndProfile")
-  local strFirstName, strLastName, strTitle, strOccupation, strGender, strRace, strAge, strHeight, strWidth, strWeight, strBuild
+  local wndBiography = self.wndMain:FindChild("wndBiography")
+  local strFirstName, strLastName, strTitle, strOccupation, strGender, strRace, strAge, strHeight, strWidth, strWeight, strBuild, strDescription, strBiography
   
   if strTarget == nil or strTarget == GameLib:GetPlayerUnit():GetName() then
     strFirstName = self.Communicator:GetLocalTrait("first_name") or ""
@@ -641,6 +642,8 @@ function Cozmotronic:LoadMainWindow(strTarget)
     strWidth = self.Communicator:GetLocalTrait("width") or ""
     strWeight = self.Communicator:GetLocalTrait("weight") or ""
     strBuild = self.Communicator:GetLocalTrait("build") or ""
+    strDescription = self.Communicator:GetLocalTrait("description") or ""
+    strBiography = self.Communicator:GetLocalTrait("biography") or ""
   else
     strFirstName = self.Communicator:GetTrait("first_name", strTarget) or ""
     strLastName = self.Communicator:GetTrait("last_name", strTarget) or ""
@@ -653,6 +656,8 @@ function Cozmotronic:LoadMainWindow(strTarget)
     strWidth = self.Communicator:GetTrait("width", strTarget) or ""
     strWeight = self.Communicator:GetTrait("weight", strTarget) or ""
     strBuild = self.Communicator:GetTrait("build", strTarget) or ""
+    strDescription = self.Communicator:GetTrait("description", strTarget) or ""
+    strBiography = self.Communicator:GetTrait("biography", strTarget) or ""
     
     wndProfile:FindChild("btnSave"):Show(false, false)
   end
@@ -669,6 +674,8 @@ function Cozmotronic:LoadMainWindow(strTarget)
   wndProfile:FindChild("input_Width"):SetText(strWidth)
   wndProfile:FindChild("input_Weight"):SetText(strWeight)
   wndProfile:FindChild("input_Build"):SetText(strBuild)
+  wndBiography:FindChild("input_Description"):SetText(strDescription)
+  wndBiography:FindChild("input_Biography"):SetText(strBiography)
   
   self.wndMain:Show(true, false)
 end
@@ -708,6 +715,7 @@ end
 function Cozmotronic:OnBtnSaveMainForm(wndHanlder, wndControl, eMouseButton)
   if self.unitSelected == nil or self.unitSelected == self.unitPlayer then
     local wndProfile = self.wndMain:FindChild("wndProfile")
+    local wndBiography = self.wndMain:FindChild("wndBiography")
     local strFirstName = wndProfile:FindChild("input_FirstName"):GetText()
     local strLastName = wndProfile:FindChild("input_LastName"):GetText()
     local strTitle = wndProfile:FindChild("input_Title"):GetText()
@@ -719,6 +727,8 @@ function Cozmotronic:OnBtnSaveMainForm(wndHanlder, wndControl, eMouseButton)
     local strWidth = wndProfile:FindChild("input_Width"):GetText()
     local strWeight = wndProfile:FindChild("input_Weight"):GetText()
     local strBuild = wndProfile:FindChild("input_Build"):GetText()
+    local strDescription = wndBiography:FindChild("input_Description"):GetText()
+    local strBiography = wndBiography:FindChild("input_Biography"):GetText()
     
     self.Communicator:SetLocalTrait("first_name", strFirstName)
     self.Communicator:SetLocalTrait("last_name", strLastName)
@@ -731,6 +741,8 @@ function Cozmotronic:OnBtnSaveMainForm(wndHanlder, wndControl, eMouseButton)
     self.Communicator:SetLocalTrait("width", strWidth)
     self.Communicator:SetLocalTrait("weight", strWeight)
     self.Communicator:SetLocalTrait("build", strBuild)
+    self.Communicator:SetLocalTrait("description", strDescription)
+    self.Communicator:SetLocalTrait("biography", strBiography)
     
     self.wndMain:Show(false, false)
   end

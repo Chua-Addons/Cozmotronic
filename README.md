@@ -10,6 +10,12 @@ Cozmotronic can be accessed in several ways:
 * Use the configure button in the main menu for the options.
 * Use the button in the Interface List to toggle between IC and OCC modes.
 
+# Main Screen
+Cozmotronic allows you to store many interesting details about your character, using a simple form.
+When filled in and saved, this information will also be transmitted to other players.
+
+![Main Window](Pictures/Cozmotronic Main.png)
+
 # Options
 When you click the big Cozmotronic button in the main menu, the options Window will be displayed.
 Here you can change various settings as well as reset the stored player cache.
