@@ -232,7 +232,8 @@ function Cozmotronic:OnSave(eLevel)
   -- Character data
   if eLevel == GameLib.CodeEnumAddonSaveLevel.Character then
     local tData = {
-      bEnabled = self.bEnabled
+      bEnabled = self.bEnabled,
+      tNameplateOptions = self.tNameplateOptions
     }
     
     return tData
@@ -261,6 +262,7 @@ function Cozmotronic:OnRestore(eLevel, tData)
   -- Character data
   if eLevel == GameLib.CodeEnumAddonSaveLevel.Character then
     self.bEnabled = tData.bEnabled or true
+    self.tNameplateOptions = tData.tNameplateOptions or ktNameplateOptions
   end
   
   -- General data
@@ -625,10 +627,10 @@ function Cozmotronic:OnBtnSaveOptionsForm(wndHandler, wndControl, eMouseButton)
     bShowTitles = wndNameplateOptions:FindChild("chkShowTitles"):IsChecked(),
     bScaleNameplates = wndNameplateOptions:FindChild("chkScaleNameplates"):IsChecked(),
     bShowTargetNameplate = wndNameplateOptions:FindChild("chkShowTargetNameplate"):IsChecked(),
-    nXoffset = tonumber(wndNameplateOptions:FindChild("input_Xoffset"):GetText() or ktNameplateOptions.nXoffset),
-    nYoffset = tonumber(wndNameplateOptions:FindChild("input_Yoffset"):GetText() or ktNameplateOptions.nYoffset),
-    nNameplateDistance = tonumber(wndNameplateOptions:FindChild("input_NameplateDistance"):GetText() or ktNameplateOptions.nNameplateDistance),
-    nAnchor = tonumber(wndNameplateOptions:FindChild("input_Anchor"):GetText() or ktNameplateOptions.nAnchor)
+    nXoffset = tonumber(wndNameplateOptions:FindChild("input_Xoffset"):GetText())  or ktNameplateOptions.nXoffset,
+    nYoffset = tonumber(wndNameplateOptions:FindChild("input_Yoffset"):GetText()) or ktNameplateOptions.nYoffset,
+    nNameplateDistance = tonumber(wndNameplateOptions:FindChild("input_NameplateDistance"):GetText()) or ktNameplateOptions.nNameplateDistance,
+    nAnchor = tonumber(wndNameplateOptions:FindChild("input_Anchor"):GetText()) or ktNameplateOptions.nAnchor
   }
   
   self.wndOptions:Show(false, false)
