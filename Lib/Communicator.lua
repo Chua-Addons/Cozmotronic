@@ -89,7 +89,7 @@ function Communicator:OnLoad()
   self.tCachedPlayerChannels = {}
   self.bTimeoutRunning = false
   self.nSequenceCounter = 0
-  self.nDebugLevel = 0
+  self.nDebugLevel = 2
   self.qPendingMessages = MessageQueue:new()
   self.kstrRPStateStrings = {
     "In-Character, Not Available for RP",
@@ -111,9 +111,34 @@ function Communicator:OnLoad()
   Apollo.RegisterTimerHandler("Communicator_TraitQueue", "OnTimerTraitQueue", self)
   Apollo.RegisterTimerHandler("Communicator_CleanupCache", "OnTimerCleanupCache", self)
   
+  -- Register EventHandlers so we can listen in on errors
+  Apollo.RegisterEventHandler("JoinResultEvent", "OnJoinResultEvent", self)
+  Apollo.RegisterEventHandler("SendMessageResultEvent", "OnSendMessageResultEvent", self)
+  Apollo.RegisterEventHandler("ReceivedMessageEvent", "OnSyncMessageReceived", self)
+  Apollo.RegisterEventHandler("ThrottledEvent", "OnThrottledEvent", self)
   -- Create the relevant timers
   Apollo.CreateTimer("Communicator_Setup", 1, false)
   Apollo.CreateTimer("Communicator_CleanupCache", 60, true)
+end
+
+-- This is triggered when the Addon successfully joins a channel or fails to.
+-- If we could not join the channel for any reason, throw an Error.
+function Communicator:OnJoinResultEvent(channel, eResult)
+  if eResult ~= ICCommLib.CodeEnumICCommJoinResult.Join then
+    Apollo.AddAddonErrorText(self, "Failed to join Channel Communicator")
+  end
+end
+
+-- Callback for when a message has been send, to determine the result.
+function Communicator:OnSendMessageResultEvent(channel, eResult, idMessage)
+  if eResult ~= ICCommLib.CodeEnumICCommMessageResult.Sent then
+    Print("Message with ID "..idMessage.."not sent: code "..eResult)
+  end
+end
+
+-- Callback for then a message gets throttled.
+function Communicator:OnThrottledEvent(channel, strSender, idMessage)
+  Print("message throttled")
 end
 
 -- This is the initializer of the Communicator Addon.
@@ -443,6 +468,7 @@ function Communicator:QueryVersion(strTarget)
   self:Log(Communicator.CodeEnumDebug.Access, string.format("Fetching %s's version", strTarget))
   
   if tVersionInfo.version == nil or (os.time() - (tVersionInfo.time or 0) > Communicator.TTL_Version) then
+    self:Log(Communicator.CodeEnumDebug.Access, string.format("Send RequestMessage to %s", strTarget))
     local mMessage = Message:new()
     
     mMessage:SetDestination(strTarget)
@@ -540,10 +566,9 @@ end
 -- Processes the provided message, parsing the contents and taking the required
 -- action based on the data stored inside.
 function Communicator:ProcessMessage(mMessage)
-  self:Log(Communicator.CodeEnumDebug.Comm, "Processing Message")
-  
-  -- Check if we're dealing with an error message.
-  if mMessage:GetType() == Message.CodeEnumType.Error then
+  if(mMessage:GetType() == Message.CodeEnumType.Error) then
+    self:Log(Communicator.CodeEnumDebug.Comm, string("ErrorMessage received from: %s", mMessage:GetOrigin()))
+    
     local tData = self.tOutGoingRequests[mMessage:GetSequence()] or {}
     
     if tData.handler then
@@ -552,25 +577,24 @@ function Communicator:ProcessMessage(mMessage)
       return
     end
   end
-  
-  -- If no AddonProtocol has been defined for the message, then look at the data
-  -- that is being provided and try to parse it.
-  if mMessage:GetAddonProtocol() == nil then
+
+  if(mMessage:GetAddonProtocol() == nil) then
+    self:Log(Communicator.CodeEnumDebug.Comm, string.format("ProcessMessage: Message from %s did not contain AddonProtocol info", mMessage:GetOrigin()))
+    
     local eType = mMessage:GetType()
     local tPayload = mMessage:GetPayload() or {}
   
-    -- This is something for Communicator itself.
-    if eType == Message.CodeEnumType.Request then
-      if mMessage:GetCommand() == "get" then
+    if(eType == Message.CodeEnumType.Request) then
+      if(mMessage:GetCommand() == "get") then
         local aReplies = {}
         
         for _, tTrait in ipairs(tPayload) do
           local data, revision = self:FetchTrait(nil, tTrait.trait or "")
           
-          if data ~= nil then
+          if(data ~= nil) then
             local tResponse = { trait = tTrait.trait, revision = revision }
             
-            if tPayload.revision == 0 or revision ~= tPayload.revision then
+            if(tPayload.revision == 0 or revision ~= tPayload.revision) then
               tResponse.data = data
             end
             
@@ -581,8 +605,11 @@ function Communicator:ProcessMessage(mMessage)
         end
         
         local mReply = self:Reply(mMessage, aReplies)
+        
         self:SendMessage(mReply)
-      elseif mMessage:GetCommand() == "version" then
+      elseif(mMessage:GetCommand() == "version") then
+        self:Log(Communicator.CodeEnumDebug.Comm, "ProcessMessage: Version requested...")
+              
         local aProtocols = {}
         
         for strAddonProtocol, _ in pairs(self.tApiProtocolHandlers) do
@@ -590,31 +617,41 @@ function Communicator:ProcessMessage(mMessage)
         end
         
         local mReply = self:Reply(mMessage, { version = Communicator.Version, protocols = aProtocols })
+        
         self:SendMessage(mReply)
-      elseif mMessage:GetCommand() == Communicator.CodeEnumTrait.All then
+      elseif(mMessage:GetCommand() == Communicator.CodeEnumTrait.All) then
+        self:Log(Communicator.CodeEnumDebug.Comm, "ProcessMessage: All Traits requested...")
+        
         local mReply = self:Reply(mMessage, self.tLocalTraits)
+        
         self:SendMessage(mReply)
-      else
+      else        
+        self:Log(Communicator.CodeEnumDebug.Comm, "ProcessMessage:We don't know how to handle this message, UnimplementedCommand")
+        
         local mReply = self:Reply(mMessage, { error = self.CodeEnumError.UnimplementedCommand })
+        
         mReply:SetType(Message.CodeEnumType.Error)
+        
         self:SendMessage(mReply)
       end
-    elseif eType == Message.CodeEnumType.Reply then
-      if mMessage:GetCommand() == "get" then
+    elseif(eType == Message.CodeEnumType.Reply) then
+      if(mMessage:GetCommand() == "get") then
         for _, tTrait in ipairs(tPayload) do
           self:CacheTrait(mMessage:GetOrigin(), tTrait.trait, tTrait.data, tTrait.revision)
         end
-      elseif mMessage:GetCommand() == "version" then
+      elseif(mMessage:GetCommand() == "version") then
         self:StoreVersion(mMessage:GetOrigin(), tPayload.version, tPayload.protocols)
-      elseif mMessage:GetCommand() == Communicator.CodeEnumTrait.All then
+      elseif(mMessage:GetCommand() == Communicator.CodeEnumTrait.All) then
         self:StoreAllTraits(mMessage:GetOrigin(), tPayload)
       end
-    elseif eType == Message.CodeEnumType.Error then
+    elseif(eType == Message.CodeEnumType.Error) then
       if(mMessage:GetCommand() == Communicator.CodeEnumTrait.All) then
         Event_FireGenericEvent("Communicator_PlayerUpdated", { player = mMessage:GetOrigin(), unsupported = true })
       end
     end
   else
+    self:Log(Communicator.CodeEnumDebug.Comm, "ProcessMessage:Supported Message - processing")
+    
     local aAddon = self.tApiProtocolHandlers[mMessage:GetAddonProtocol()]
     
     if aAddon ~= nil or table.getn(aAddon) == 0 then
@@ -623,18 +660,21 @@ function Communicator:ProcessMessage(mMessage)
       end
     elseif mMessage:GetType() == Message.CodeEnumType.Request then
       local mError = self:Reply(mMessage, { type = Communicator.CodeEnumError.UnimplementedProtocol })
+      
       mError:SetType(Message.CodeEnumType.Error)
       self:SendMessage(mError)
     end
   end
     
   if mMessage:GetType() == Message.CodeEnumType.Reply or mMessage:GetType() == Message.CodeEnumType.Error then
+    self:Log(Communicator.CodeEnumDebug.Comm, "Received message was a reply/error. Ignoring..")
     self.tOutGoingRequests[mMessage:GetSequence()] = nil
   end
 end
 
 function Communicator:SendMessage(mMessage, fCallback)
   if mMessage:GetDestination() == self:GetOriginName() then
+    self:Log(Communicator.CodeEnumDebug.Access, "Not sending messages to ourselves...")
     return
   end
   
@@ -668,6 +708,7 @@ end
 function Communicator:OnTimerQueueShutdown()
   Apollo.StopTimer("Communicator_Queue")
   self.bQueueProcessRunning = false
+  self:Log(Communicator.CodeEnumDebug.Debug, "MessageQueue is empty. Stopping Processing")
 end
 
 function Communicator:OnTimerProcessMessageQueue()
@@ -680,6 +721,7 @@ function Communicator:OnTimerProcessMessageQueue()
   local channel = self:ChannelForPlayer()
   
   if channel.SendPrivateMessage ~= nil then
+    self:Log(Communicator.CodeEnumDebug.Access, string.format("Sending message to %s using SendPrivateMessage", mMessage:GetDestination()))
     channel:SendPrivateMessage(mMessage:GetDestination(), mMessage:Serialize())
   else
     channel:SendMessage(mMessage:Serialize())
@@ -690,8 +732,11 @@ function Communicator:OnTimerProcessMessageQueue()
     Apollo.CreateTimer("Communicator_Timeout", 15, true)
   end
 end
-    
+
+-- This function is called whenever the Shutdown timer exceeds the allotted time.
+-- When this happens, then the timer is stopped, and processing ceases.
 function Communicator:OnTimerTimeoutShutdown()
+  self:Log(Communicator.CodeEnumDebug.Debug, "Timeout detected, stopping timer.")
   Apollo.StopTimer("Communicator_Timeout")
   self.bTimeoutRunning = false
 end
