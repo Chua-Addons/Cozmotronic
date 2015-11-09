@@ -104,7 +104,7 @@ function Cozmotronic:new(o)
   o.tStateColors = {}
   o.arUnit2Nameplate = {}
   o.arWnd2Nameplate = {}
-  o.chnChannel = {}
+  o.chnChannel = nil
   
   -- Copy over the data from the constants
   for i,v in pairs(ktStyles) do

@@ -709,20 +709,23 @@ end
 -- Configures the internal ICCommChannel to be used for communication of the Addon.
 -- If the channel is already configured, then simply return it, or configure it.
 function Communicator:ChannelForPlayer()
-  if self.chnCommunicator == nil then
-    self.chnCommunicator = ICCommLib.JoinChannel("Communicator", ICCommLib.CodeEnumICCommChannelType.Global)
-    self.chnCommunicator:SetJoinResultFunction("OnSyncChannelJoined", self)
+  -- Fetch our Addon
+  local Cozmotronic = Apollo.GetAddon("Cozmotronic")
+  
+  if Cozmotronic.chnChannel == nil then
+    Cozmotronic.chnChannel = ICCommLib.JoinChannel("Communicator", ICCommLib.CodeEnumICCommChannelType.Global)
+    Cozmotronic.chnChannel:SetJoinResultFunction("OnSyncChannelJoined", self)
     
     if self.chnCommunicator:IsReady() then
       self:Log(Communicator.CodeEnumDebug.Debug, "ChannelForPlayer :: Channel is ready, commencing broadcasting...")
-      self.chnCommunicator:SetReceivedMessageFunction("OnSyncMessageReceived", self)
+      Cozmotronic.chnChannel:SetReceivedMessageFunction("OnSyncMessageReceived", self)
     else
       self:Log(Communicator.CodeEnumDebug.Debug, "Channel not ready, retrying in one second")
       Apollo.CreateTimer("Communicator_ChannelTimer", 1, true)
     end
   end
   
-  return self.chnCommunicator
+  return Cozmotronic.chnChannel
 end
 
 -- This method is triggered by the ChannelTimer every second.
@@ -732,13 +735,16 @@ end
 function Communicator:OnChannelTimer()
   Apollo.StopTimer("Communicator_ChannelTimer")
   
-  if self.chnCommunicator == nil then
-    self.chnCommunicator = ICCommLib.JoinChannel("Communicator", ICCommLib.CodeEnumICCommChannelType.Global)
-    self.chnCommunicator:SetJoinResultFunction("OnSyncChannelJoined", self)
+  -- Fetch our Addon
+  local Cozmotronic = Apollo.GetAddon("Cozmotronic")
+  
+  if Cozmotronic.chnChannel == nil then
+    Cozmotronic.chnChannel = ICCommLib.JoinChannel("Communicator", ICCommLib.CodeEnumICCommChannelType.Global)
+    Cozmotronic.chnChannel:SetJoinResultFunction("OnSyncChannelJoined", self)
   end
   
-  if self.chnCommunicator:IsReady() then
-    self.chnCommunicator:SetReceivedMessageFunction("OnSyncMessageReceived", self)
+  if Cozmotronic.chnChannel:IsReady() then
+    Cozmotronic.chnChannel:SetReceivedMessageFunction("OnSyncMessageReceived", self)
   else
     self:Log(Communicator.CodeEnumDebug.Debug, "Channel not ready, retrying in one second")
     Apollo.CreateTimer("Communicator_ChannelTimer", 1, true)
