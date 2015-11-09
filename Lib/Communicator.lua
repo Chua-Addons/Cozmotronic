@@ -1,7 +1,7 @@
 require "ICCommLib"
 require "ICComm"
 
-local MAJOR, MINOR = "Communicator", 1
+local MAJOR, MINOR = "Communicator", 2
 local APkg = Apollo.GetPackage(MAJOR)
 
 if APkg and (APkg.nVersion or 0) >= MINOR then
@@ -41,7 +41,7 @@ Communicator.CodeEnumError = {
   RequestTimedOut = 3
 }
 Communicator.CodeEnumDebug = {
-  Errors = 1,
+  Debug = 1,
   Comm = 2,
   Access = 3,
 }
@@ -72,26 +72,19 @@ function Communicator:new(o)
   
   self.__index = self
   
-  return o
-end
-
--- This function is called by the Client when the Addon needs to be loaded.
--- When this is called, we will initialize our environment and register
--- all event-handlers as well as setting up our DataStructures.
-function Communicator:OnLoad()
   -- Initialize our internal state
-  self.tApiProtocolHandlers = {}
-  self.tLocalTraits = {}
-  self.tOutGoingRequests = {}
-  self.tFloodPrevent = {}
-  self.tCachedPlayerData = {}
-  self.tPendingPlayerTraitRequests = {}
-  self.tCachedPlayerChannels = {}
-  self.bTimeoutRunning = false
-  self.nSequenceCounter = 0
-  self.nDebugLevel = 2
-  self.qPendingMessages = MessageQueue:new()
-  self.kstrRPStateStrings = {
+  o.tApiProtocolHandlers = {}
+  o.tLocalTraits = {}
+  o.tOutGoingRequests = {}
+  o.tFloodPrevent = {}
+  o.tCachedPlayerData = {}
+  o.tPendingPlayerTraitRequests = {}
+  o.tCachedPlayerChannels = {}
+  o.bTimeoutRunning = false
+  o.nSequenceCounter = 0
+  o.nDebugLevel = 2
+  o.qPendingMessages = MessageQueue:new()
+  o.kstrRPStateStrings = {
     "In-Character, Not Available for RP",
     "Available for RP",
     "In-Character, Available for RP",
@@ -100,8 +93,15 @@ function Communicator:OnLoad()
     "In an Open Scene (Temporarily OOC)",
     "In an Open Scene" 
   }
-  self.strPlayerName = nil
+  o.strPlayerName = nil
   
+  return o
+end
+
+-- This function is called by the Client when the Addon needs to be loaded.
+-- When this is called, we will initialize our environment and register
+-- all event-handlers as well as setting up our DataStructures.
+function Communicator:OnLoad()  
   -- Register our event handlers for the timers.
   Apollo.RegisterTimerHandler("Communicator_Timeout", "OnTimerTimeout", self)
   Apollo.RegisterTimerHandler("Communicator_TimeoutShutdown", "OnTimerTimeoutShutdown", self)
@@ -110,6 +110,7 @@ function Communicator:OnLoad()
   Apollo.RegisterTimerHandler("Communicator_Setup", "OnTimerSetup", self)
   Apollo.RegisterTimerHandler("Communicator_TraitQueue", "OnTimerTraitQueue", self)
   Apollo.RegisterTimerHandler("Communicator_CleanupCache", "OnTimerCleanupCache", self)
+  Apollo.RegisterTimerHandler("Communicator_ChannelTimer", "OnChannelTimer", self)
   
   -- Register EventHandlers so we can listen in on errors
   Apollo.RegisterEventHandler("JoinResultEvent", "OnJoinResultEvent", self)
@@ -290,33 +291,35 @@ end
 function Communicator:GetTrait(strTarget, strTrait)
   local strResult = nil
   
-  if strTrait == Communicator.CodeEnumTrait.Name then
+  if(strTrait == Communicator.CodeEnumTrait.Name) then
     strResult = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.Name) or strTarget
-  elseif strTrait == Communicator.CodeEnumTrait.NameAndTitle then
+  elseif(strTrait == Communicator.CodeEnumTrait.NameAndTitle) then
     local strName = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.Name)
+    
     strResult = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.NameAndTitle)
     
-    if strResult == nil then
+    if(strResult == nil) then
       strResult = strName
     else
       local nStart,nEnd = strResult:find("#name#")
       
-      if nStart ~= nil then
+      if(nStart ~= nil) then
         strResult = strResult:gsub("#name#", self:EscapePattern(strName or strTarget))
       else
         strResult = strResult.." "..(strName or strTarget)
       end
     end
-  elseif strTrait == Communicator.CodeEnumTrait.Description then
+  elseif(strTrait == Communicator.CodeEnumTrait.Description) then
     strResult = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.Description)
    
     if strResult ~= nil then
       strResult = self:TruncateString(strResult, Communicator.MaxLength)
     end
-  elseif strTrait == Communicator.CodeEnumTrait.RPState then
+  elseif(strTrait == Communicator.CodeEnumTrait.RPState) then
     local rpFlags = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.RPState) or 0
+    
     strResult = self:FlagsToString(rpFlags)
-  elseif strTrait == Communicator.CodeEnumTrait.Biography then
+  elseif(strTrait == Communicator.CodeEnumTrait.Biography) then
     strResult = self:FetchTrait(strTarget, Communicator.CodeEnumTrait.Biography)
   else
     strResult = self:FetchTrait(strTarget, strTrait)
@@ -357,9 +360,11 @@ end
 function Communicator:FetchTrait(strTarget, strTraitName)
   -- If no target is provided, or we're fetching our own traits, then check
   -- the localTraits cache for the information and return it when avaialble.
-  if strTarget == nil or strTarget == self:GetOriginName() then
+  if(strTarget == nil or strTarget == self:GetOriginName()) then
     local tTrait = self.tLocalTraits[strTraitName] or {}
+    
     self:Log(Communicator.CodeEnumDebug.Access, string.format("Fetching own %s: (%d) %s", strTraitName, tTrait.revision or 0, tostring(tTrait.data)))
+    
     return tTrait.data, tTrait.revision
   else
     -- Check the local cached player data for the information
@@ -370,7 +375,7 @@ function Communicator:FetchTrait(strTarget, strTraitName)
     self:Log(Communicator.CodeEnumDebug.Access, string.format("Fetching %s's %s: (%d) %s", strTarget, strTraitName, tTrait.revision or 0, tostring(tTrait.data)))
     
     -- Check if the TTL is set correctly, and do so if not.    
-    if (tTrait.revision or 0) == 0 then
+    if ((tTrait.revision or 0) == 0) then
       nTTL = 10 
     end
     
@@ -378,7 +383,7 @@ function Communicator:FetchTrait(strTarget, strTraitName)
     -- prepare to request the information again from the target.
     -- We do this by setting the query in the request queue and fire a timer to
     -- process it in the background.
-    if tTrait == nil or (os.time() - (tTrait.time or 0)) > nTTL then
+    if(tTrait == nil or (os.time() - (tTrait.time or 0)) > nTTL) then
       tTrait.time = os.time()
       tPlayerTraits[strTraitName] = tTrait
       self.tCachedPlayerData[strTarget] = tPlayerTraits
@@ -386,9 +391,12 @@ function Communicator:FetchTrait(strTarget, strTraitName)
       local tPendingPlayerQuery = self.tPendingPlayerTraitRequests[strTarget] or {}
       local tRequest = { trait = strTraitName, revision = tTrait.revision or 0 }
       
-    self:Log(Communicator.CodeEnumDebug.Access, string.format("Building up query to retrieve %s's %s:", strTarget, strTraitName))
+      self:Log(Communicator.CodeEnumDebug.Access, string.format("Building up query to retrieve %s's %s:", strTarget, strTraitName))
+      
       table.insert(tPendingPlayerQuery, tRequest)
+      
       self.tPendingPlayerTraitRequests[strTarget] = tPendingPlayerQuery
+      
       Apollo.CreateTimer("Communicator_TraitQueue", 1, false)
     end
     
@@ -420,7 +428,9 @@ function Communicator:CacheTrait(strTarget, strTrait, data, nRevision)
     
     tPlayerTraits[strTrait] = { data = data, revision = nRevision, time = os.time() }
     self.tCachedPlayerData[strTarget] = tPlayerTraits
+    
     self:Log(Communicator.CodeEnumDebug.Access, string.format("Caching %s's %s: (%d) %s", strTarget, strTrait, nRevision or 0, tostring(data)))
+    
     Event_FireGenericEvent("Communicator_TraitChanged", { player = strTarget, trait = strTrait, data = data, revision = nRevision })
   end
 end  
@@ -446,7 +456,7 @@ function Communicator:GetLocalTrait(strTrait)
 end
 
 function Communicator:QueryVersion(strTarget)
-  if strTarget == nil or strTarget == self:GetOriginName() then
+  if(strTarget == nil or strTarget == self:GetOriginName()) then
     local aProtocols = {}
     
     for strAddonProtocol, _ in pairs(self.tApiProtocolHandlers) do
@@ -465,10 +475,8 @@ function Communicator:QueryVersion(strTarget)
   end
   
   self:MarkAddonProtocolCommand(strTarget, nil, "version")
-  self:Log(Communicator.CodeEnumDebug.Access, string.format("Fetching %s's version", strTarget))
   
   if tVersionInfo.version == nil or (os.time() - (tVersionInfo.time or 0) > Communicator.TTL_Version) then
-    self:Log(Communicator.CodeEnumDebug.Access, string.format("Send RequestMessage to %s", strTarget))
     local mMessage = Message:new()
     
     mMessage:SetDestination(strTarget)
@@ -551,10 +559,12 @@ end
 function Communicator:OnSyncMessageReceived(channel, strMessage, idMessage)
   local mMessage = Message:new()
   
+  self:Log(Communicator.CodeEnumDebug.Debug, string.format("OnSyncMessageReceived :: Message = %s", strMessage))
+  
   mMessage:Deserialize(strMessage)
   
   if tonumber(mMessage:GetProtocolVersion() or 0) > Message.ProtocolVersion then
-    Print("Communicator: Warning :: Received packet for unrecognized version " .. mMessage:GetProtocolVersion())
+    self:Log(Communicator.CodeEnumDebug.Debug, string.format("Received packet for unrecognized version %s", mMessage:GetProtocolVersion():tostring()))
     return
   end
   
@@ -566,6 +576,8 @@ end
 -- Processes the provided message, parsing the contents and taking the required
 -- action based on the data stored inside.
 function Communicator:ProcessMessage(mMessage)
+  Print("ProcessMessage: message receive = " .. mMessage:Serialize())
+  
   if(mMessage:GetType() == Message.CodeEnumType.Error) then
     self:Log(Communicator.CodeEnumDebug.Comm, string("ErrorMessage received from: %s", mMessage:GetOrigin()))
     
@@ -577,7 +589,9 @@ function Communicator:ProcessMessage(mMessage)
       return
     end
   end
-
+  
+  self:Log(Communicator.CodeEnumDebug.Comm, string.format("ProcessMessage: Received Message = %s", mMessage:Serialize()))
+  
   if(mMessage:GetAddonProtocol() == nil) then
     self:Log(Communicator.CodeEnumDebug.Comm, string.format("ProcessMessage: Message from %s did not contain AddonProtocol info", mMessage:GetOrigin()))
     
@@ -674,7 +688,7 @@ end
 
 function Communicator:SendMessage(mMessage, fCallback)
   if mMessage:GetDestination() == self:GetOriginName() then
-    self:Log(Communicator.CodeEnumDebug.Access, "Not sending messages to ourselves...")
+    self:Log(Communicator.CodeEnumDebug.Debug, "Not sending messages to ourselves...")
     return
   end
   
@@ -698,11 +712,37 @@ function Communicator:ChannelForPlayer()
   if self.chnCommunicator == nil then
     self.chnCommunicator = ICCommLib.JoinChannel("Communicator", ICCommLib.CodeEnumICCommChannelType.Global)
     self.chnCommunicator:SetJoinResultFunction("OnSyncChannelJoined", self)
-    self.chnCommunicator:IsReady()
-    self.chnCommunicator:SetReceivedMessageFunction("OnSyncMessageReceived", self)
+    
+    if self.chnCommunicator:IsReady() then
+      self:Log(Communicator.CodeEnumDebug.Debug, "ChannelForPlayer :: Channel is ready, commencing broadcasting...")
+      self.chnCommunicator:SetReceivedMessageFunction("OnSyncMessageReceived", self)
+    else
+      self:Log(Communicator.CodeEnumDebug.Debug, "Channel not ready, retrying in one second")
+      Apollo.CreateTimer("Communicator_ChannelTimer", 1, true)
+    end
   end
   
   return self.chnCommunicator
+end
+
+-- This method is triggered by the ChannelTimer every second.
+-- When this method is triggered, we will check if the channel has been properly
+-- created and attempt to join.
+-- Should the join fail, then we will keep trying.
+function Communicator:OnChannelTimer()
+  Apollo.StopTimer("Communicator_ChannelTimer")
+  
+  if self.chnCommunicator == nil then
+    self.chnCommunicator = ICCommLib.JoinChannel("Communicator", ICCommLib.CodeEnumICCommChannelType.Global)
+    self.chnCommunicator:SetJoinResultFunction("OnSyncChannelJoined", self)
+  end
+  
+  if self.chnCommunicator:IsReady() then
+    self.chnCommunicator:SetReceivedMessageFunction("OnSyncMessageReceived", self)
+  else
+    self:Log(Communicator.CodeEnumDebug.Debug, "Channel not ready, retrying in one second")
+    Apollo.CreateTimer("Communicator_ChannelTimer", 1, true)
+  end
 end
     
 function Communicator:OnTimerQueueShutdown()
@@ -711,8 +751,9 @@ function Communicator:OnTimerQueueShutdown()
   self:Log(Communicator.CodeEnumDebug.Debug, "MessageQueue is empty. Stopping Processing")
 end
 
-function Communicator:OnTimerProcessMessageQueue()
+function Communicator:OnTimerProcessMessageQueue()  
   if self.qPendingMessages:GetSize() == 0 then
+    self:Log(Communicator.CodeEnumDebug.Debug, "OnTimerProcessMessageQueue :: MessageQueue is empty, shutting down.")
     Apollo.CreateTimer("Communicator_QueueShutDown", 0.1, false)
     return
   end
@@ -720,8 +761,10 @@ function Communicator:OnTimerProcessMessageQueue()
   local mMessage = self.qPendingMessages:Pop()
   local channel = self:ChannelForPlayer()
   
+  self:Log(Communicator.CodeEnumDebug.Debug, string.format("%s Messages remaining in the Queue", self.qPendingMessages:GetSize():tostring()))
+  
   if channel.SendPrivateMessage ~= nil then
-    self:Log(Communicator.CodeEnumDebug.Access, string.format("Sending message to %s using SendPrivateMessage", mMessage:GetDestination()))
+    self:Log(Communicator.CodeEnumDebug.Debug, string.format("Sending message to %s using SendPrivateMessage", mMessage:GetDestination()))
     channel:SendPrivateMessage(mMessage:GetDestination(), mMessage:Serialize())
   else
     channel:SendMessage(mMessage:Serialize())
@@ -841,7 +884,7 @@ function Communicator:ClearCachedPlayerList()
 end
 
 function Communicator:CacheAsTable()
-  return { locaData = self.tLocalTraits, cachedData = self.tCachedPlayerData }
+  return { localData = self.tLocalTraits, cachedData = self.tCachedPlayerData }
 end
 
 function Communicator:LoadFromTable(tData)
