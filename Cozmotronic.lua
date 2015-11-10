@@ -180,6 +180,7 @@ function Cozmotronic:OnDocumentLoaded()
     
     -- Load our external dependencies
     self.Communicator = Communicator:new()
+    self.Communicator:Initialize("Cozmotronic")
   else
     error("Failed to load XML")    
   end

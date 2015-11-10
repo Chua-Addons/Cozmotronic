@@ -1,14 +1,15 @@
 require "ICCommLib"
 require "ICComm"
 
-local MAJOR, MINOR = "Communicator", 2
+local MAJOR, MINOR = "Communicator", 3
 local APkg = Apollo.GetPackage(MAJOR)
 
 if APkg and (APkg.nVersion or 0) >= MINOR then
   return
 end
 
-local Communicator = APkg and APkg.tPackage or {}
+--local Communicator = APkg and APkg.tPackage or {}
+local Communicator = {}
 local Message = Apollo.GetPackage("Message").tPackage
 local MessageQueue = Apollo.GetPackage("MessageQueue").tPackage
 
@@ -45,13 +46,15 @@ Communicator.CodeEnumDebug = {
   Comm = 2,
   Access = 3,
 }
-Communicator.TTL_Trait = 120
-Communicator.TTL_Version = 300
-Communicator.TTL_Flood = 30
-Communicator.TTL_Channel = 60
-Communicator.TTL_Packet = 15
-Communicator.TTL_GetAll = 120
-Communicator.TTL_CacheDie = 604800
+Communicator.CodeEnumTTL = {
+  Trait = 120,
+  Version = 300,
+  Flood = 30,
+  Channel = 60,
+  Packet = 15,
+  GetAll = 120,
+  CacheDie = 604800
+}
 Communicator.CodeEnumTrait = {
   Name = "full_name",
   NameAndTitle = "title",
@@ -82,7 +85,7 @@ function Communicator:new(o)
   o.tCachedPlayerChannels = {}
   o.bTimeoutRunning = false
   o.nSequenceCounter = 0
-  o.nDebugLevel = 2
+  o.nDebugLevel = 0
   o.qPendingMessages = MessageQueue:new()
   o.kstrRPStateStrings = {
     "In-Character, Not Available for RP",
@@ -96,30 +99,6 @@ function Communicator:new(o)
   o.strPlayerName = nil
   
   return o
-end
-
--- This function is called by the Client when the Addon needs to be loaded.
--- When this is called, we will initialize our environment and register
--- all event-handlers as well as setting up our DataStructures.
-function Communicator:OnLoad()  
-  -- Register our event handlers for the timers.
-  Apollo.RegisterTimerHandler("Communicator_Timeout", "OnTimerTimeout", self)
-  Apollo.RegisterTimerHandler("Communicator_TimeoutShutdown", "OnTimerTimeoutShutdown", self)
-  Apollo.RegisterTimerHandler("Communicator_Queue", "OnTimerProcessMessageQueue", self)
-  Apollo.RegisterTimerHandler("Communicator_QueueShutdown", "OnTimerQueueShutdown", self)
-  Apollo.RegisterTimerHandler("Communicator_Setup", "OnTimerSetup", self)
-  Apollo.RegisterTimerHandler("Communicator_TraitQueue", "OnTimerTraitQueue", self)
-  Apollo.RegisterTimerHandler("Communicator_CleanupCache", "OnTimerCleanupCache", self)
-  Apollo.RegisterTimerHandler("Communicator_ChannelTimer", "OnChannelTimer", self)
-  
-  -- Register EventHandlers so we can listen in on errors
-  Apollo.RegisterEventHandler("JoinResultEvent", "OnJoinResultEvent", self)
-  Apollo.RegisterEventHandler("SendMessageResultEvent", "OnSendMessageResultEvent", self)
-  Apollo.RegisterEventHandler("ReceivedMessageEvent", "OnSyncMessageReceived", self)
-  Apollo.RegisterEventHandler("ThrottledEvent", "OnThrottledEvent", self)
-  -- Create the relevant timers
-  Apollo.CreateTimer("Communicator_Setup", 1, false)
-  Apollo.CreateTimer("Communicator_CleanupCache", 60, true)
 end
 
 -- This is triggered when the Addon successfully joins a channel or fails to.
@@ -142,10 +121,32 @@ function Communicator:OnThrottledEvent(channel, strSender, idMessage)
   Print("message throttled")
 end
 
+function Communicator:OnLoad()
+  -- Register our event handlers for the timers.
+  Apollo.RegisterTimerHandler("Communicator_Timeout", "OnTimerTimeout", self)
+  Apollo.RegisterTimerHandler("Communicator_TimeoutShutdown", "OnTimerTimeoutShutdown", self)
+  Apollo.RegisterTimerHandler("Communicator_Queue", "OnTimerProcessMessageQueue", self)
+  Apollo.RegisterTimerHandler("Communicator_QueueShutdown", "OnTimerQueueShutdown", self)
+  Apollo.RegisterTimerHandler("Communicator_Setup", "OnTimerSetup", self)
+  Apollo.RegisterTimerHandler("Communicator_TraitQueue", "OnTimerTraitQueue", self)
+  Apollo.RegisterTimerHandler("Communicator_CleanupCache", "OnTimerCleanupCache", self)
+  Apollo.RegisterTimerHandler("Communicator_ChannelTimer", "OnChannelTimer", self)
+  
+  -- Register EventHandlers so we can listen in on errors
+  Apollo.RegisterEventHandler("JoinResultEvent", "OnJoinResultEvent", self)
+  Apollo.RegisterEventHandler("SendMessageResultEvent", "OnSendMessageResultEvent", self)
+  Apollo.RegisterEventHandler("ReceivedMessageEvent", "OnSyncMessageReceived", self)
+  Apollo.RegisterEventHandler("ThrottledEvent", "OnThrottledEvent", self)
+  
+  -- Create the relevant timers
+  Apollo.CreateTimer("Communicator_Setup", 1, false)
+  Apollo.CreateTimer("Communicator_CleanupCache", 60, true)
+end
+
 -- This is the initializer of the Communicator Addon.
 -- We use this function to register ourself in the Client as a new Addon
 -- that needs to be maintained.
-function Communicator:Init()
+function Communicator:Init()  
   local bHasConfigureFunction = false
   local strConfigureButtonText = ""
   local tDependencies = {
@@ -153,6 +154,13 @@ function Communicator:Init()
   }
   
   Apollo.RegisterAddon(self, bHasConfigureFunction, strConfigureButtonText, tDependencies)
+end
+
+-- Initializes the instances of Communicator and sets up the ICCommLib channel.
+-- Requires the name of the owning Addon to be supplied.
+function Communicator:Initialize(strAddon)
+  self.strAddon = strAddon
+  self:ChannelForPlayer()
 end
 
 -- This function is called by the Client whenever the Addon needs to save all the data.
@@ -370,7 +378,7 @@ function Communicator:FetchTrait(strTarget, strTraitName)
     -- Check the local cached player data for the information
     local tPlayerTraits = self.tCachedPlayerData[strTarget] or {}
     local tTrait = tPlayerTraits[strTraitName] or {}
-    local nTTL = Communicator.TTL_Trait
+    local nTTL = Communicator.CodeEnumTTL.Trait
     
     self:Log(Communicator.CodeEnumDebug.Access, string.format("Fetching %s's %s: (%d) %s", strTarget, strTraitName, tTrait.revision or 0, tostring(tTrait.data)))
     
@@ -408,30 +416,9 @@ end
 -- the target as identifier.
 function Communicator:CacheTrait(strTarget, strTrait, data, nRevision)
   if strTarget == nil or strTarget == self:GetOriginName() then
-    self.tLocalTraits[strTrait] = {
-      data = data,
-      revision = nRevision 
-    }
-    self:Log(Communicator.CodeEnumDebug.Access, string.format("Caching own %s: (%d) %s", strTrait, nRevision or 0, tostring(data)))
-    Event_FireGenericEvent("Communicator_TraitChanged", { player = self:GetOriginName(), trait = strTrait, data = data, revision = nRevision })
+    self:Internal_CacheLocalTrait(strTrait, data, nRevision)
   else
-    local tPlayerTraits = self.tCachedPlayerData[strTarget] or {}
-    
-    if nRevision ~= 0 and tPlayerTraits.revision == nRevision then
-      tPlayerTraits.time = os.time()
-      return
-    end
-    
-    if data == nil then
-      return
-    end
-    
-    tPlayerTraits[strTrait] = { data = data, revision = nRevision, time = os.time() }
-    self.tCachedPlayerData[strTarget] = tPlayerTraits
-    
-    self:Log(Communicator.CodeEnumDebug.Access, string.format("Caching %s's %s: (%d) %s", strTarget, strTrait, nRevision or 0, tostring(data)))
-    
-    Event_FireGenericEvent("Communicator_TraitChanged", { player = strTarget, trait = strTrait, data = data, revision = nRevision })
+    self:Internal_CachePlayerTrait(strTarget, strTrait, data, nRevision)
   end
 end  
 
@@ -470,13 +457,13 @@ function Communicator:QueryVersion(strTarget)
   local tVersionInfo = tPlayerTraits["__rpVersion"] or {}
   local nLastTime = self:TimeSinceLastAddonProtocolCommand(strTarget, nil, "version")
   
-  if nLastTime < Communicator.TTL_Version then
+  if nLastTime < Communicator.CodeEnumTTL.Version then
     return tVersionInfo.version, tVersionInfo.addons
   end
   
   self:MarkAddonProtocolCommand(strTarget, nil, "version")
   
-  if tVersionInfo.version == nil or (os.time() - (tVersionInfo.time or 0) > Communicator.TTL_Version) then
+  if tVersionInfo.version == nil or (os.time() - (tVersionInfo.time or 0) > Communicator.CodeEnumTTL.Version) then
     local mMessage = Message:new()
     
     mMessage:SetDestination(strTarget)
@@ -507,7 +494,7 @@ function Communicator:GetAllTraits(strTarget)
   local tPlayerTraits = self.tCachedPlayerData[strTarget] or {}
   self:Log(Communicator.CodeEnumDebug.Access, string.format("Fetching %s's full trait set (version: %s)", strTarget, Communicator.Version))
   
-  if(self:TimeSinceLastAddonProtocolCommand(strTarget, nil, Communicator.CodeEnumTrait.All) > Communicator.TTL_GetAll) then
+  if(self:TimeSinceLastAddonProtocolCommand(strTarget, nil, Communicator.CodeEnumTrait.All) > Communicator.CodeEnumTTL.GetAll) then
     local mMessage = Message:new()
     
     mMessage:SetDestination(strTarget)
@@ -709,23 +696,33 @@ end
 -- Configures the internal ICCommChannel to be used for communication of the Addon.
 -- If the channel is already configured, then simply return it, or configure it.
 function Communicator:ChannelForPlayer()
-  -- Fetch our Addon
-  local Cozmotronic = Apollo.GetAddon("Cozmotronic")
+  if(self.strAddon == nil) then
+    Apollo.CreateTimer("Communicator_ChannelTimer", 1, true)
+    return
+  end
+
+  local addon = Apollo.GetAddon(self.strAddon)
   
-  if Cozmotronic.chnChannel == nil then
-    Cozmotronic.chnChannel = ICCommLib.JoinChannel("Communicator", ICCommLib.CodeEnumICCommChannelType.Global)
-    Cozmotronic.chnChannel:SetJoinResultFunction("OnSyncChannelJoined", self)
+  if(addon == nil) then
+    -- Addon has not loaded yet. Try again in one second.
+    Apollo.CreateTimer("Communicator_ChannelTimer", 1, true)
+    return
+  end
     
-    if self.chnCommunicator:IsReady() then
+  if addon.chnChannel == nil then
+    addon.chnChannel = ICCommLib.JoinChannel("Communicator", ICCommLib.CodeEnumICCommChannelType.Global)
+    addon.chnChannel:SetJoinResultFunction("OnSyncChannelJoined", self)
+    
+    if addon.chnChannel:IsReady() then
       self:Log(Communicator.CodeEnumDebug.Debug, "ChannelForPlayer :: Channel is ready, commencing broadcasting...")
-      Cozmotronic.chnChannel:SetReceivedMessageFunction("OnSyncMessageReceived", self)
+      addon.chnChannel:SetReceivedMessageFunction("OnSyncMessageReceived", self)
     else
       self:Log(Communicator.CodeEnumDebug.Debug, "Channel not ready, retrying in one second")
       Apollo.CreateTimer("Communicator_ChannelTimer", 1, true)
     end
   end
   
-  return Cozmotronic.chnChannel
+  return addon.chnChannel  
 end
 
 -- This method is triggered by the ChannelTimer every second.
@@ -734,21 +731,7 @@ end
 -- Should the join fail, then we will keep trying.
 function Communicator:OnChannelTimer()
   Apollo.StopTimer("Communicator_ChannelTimer")
-  
-  -- Fetch our Addon
-  local Cozmotronic = Apollo.GetAddon("Cozmotronic")
-  
-  if Cozmotronic.chnChannel == nil then
-    Cozmotronic.chnChannel = ICCommLib.JoinChannel("Communicator", ICCommLib.CodeEnumICCommChannelType.Global)
-    Cozmotronic.chnChannel:SetJoinResultFunction("OnSyncChannelJoined", self)
-  end
-  
-  if Cozmotronic.chnChannel:IsReady() then
-    Cozmotronic.chnChannel:SetReceivedMessageFunction("OnSyncMessageReceived", self)
-  else
-    self:Log(Communicator.CodeEnumDebug.Debug, "Channel not ready, retrying in one second")
-    Apollo.CreateTimer("Communicator_ChannelTimer", 1, true)
-  end
+  self:ChannelForPlayer()
 end
     
 function Communicator:OnTimerQueueShutdown()
@@ -795,7 +778,7 @@ function Communicator:OnTimerTimeout()
   local nOutgoingCount = 0
   
   for nSequence, tData in pairs(self.tOutGoingRequests) do
-    if (nNow - tData.time) > Communicator.TTL_Packet then
+    if (nNow - tData.time) > Communicator.CodeEnumTTL.Packet then
       local tPayload = {
         error = Communicator.CodeEnumError.RequestTimedOut, 
         destination = tData.message:GetDestination(),
@@ -813,13 +796,13 @@ function Communicator:OnTimerTimeout()
   end
   
   for strCommandId, nLastTime in pairs(self.tFloodPrevent) do
-    if (nNow - nLastTime) > Communicator.TTL_Flood then
+    if (nNow - nLastTime) > Communicator.CodeEnumTTL.Flood then
       self.tFloodPrevent[strCommandId] = nil
     end
   end
   
   for strPlayerName, tChannelRecord in pairs(self.tCachedPlayerChannels) do
-    if (nNow - tChannelRecord.time or 0) > Communicator.TTL_Channel then
+    if (nNow - tChannelRecord.time or 0) > Communicator.CodeEnumTTL.Channel then
       self.tCachedPlayerChannels[strPlayerName] = nil
     end
   end
@@ -834,7 +817,7 @@ function Communicator:OnTimerCleanupCache()
   
   for strPlayerName, tRecord in pairs(self.tCachedPlayerData) do
     for strParam, tTrait in pairs(tRecord) do
-      if(nNow - tTrait.time > Communicator.TTL_CacheDie) then
+      if(nNow - tTrait.time > Communicator.CodeEnumTTL.CacheDie) then
         tRecord[strParam] = nil
       end
     end
@@ -906,10 +889,59 @@ function Communicator:RegisterAddonProtocolHandler(strAddonProtocol, fHandler)
 end
 
 ---------------------------------------------------------------------------------------------------
--- Package Registration
+-- Internal Methods
+-- 
+-- These methods are not part of the public API of Communicator and should not be called directly
+-- by any Addon that relies on Communicator or is working with Communicator.
+-- Doing so might destroy the internal Data or break the functionality.
+-- 
+-- YOU HAVE BEEN WARNED!
 ---------------------------------------------------------------------------------------------------
-function Communicator:Initialize()
+
+-- Caches a trait locally for the player. If the name of the trait is not provided
+-- the function will not do anything.
+-- Raises the event Communicator_TraitChanged.
+function Communicator:Internal_CacheLocalTrait(strTrait, tData, nRevision)
+  if strTrait == nil then return end
+  
+  self:Log(Communicator.CodeEnumDebug.Access, string.format("Caching own %s: (%d) %s", strTrait, nRevision or 0, tostring(tData)))
+  
+  self.tLocalTraits[strTrait] = {
+    data = tData,
+    revision = nRevision
+  }
+  
+  Event_FireGenericEvent("Communicator_TraitChanged", { player = self:GetOriginName(), trait = strTrait, data = data, revision = nRevision })  
+end
+
+-- Caches the trait for a specific player. Checks the revision of the trait and updates
+-- the data as needed.
+-- Raises the event Communicator_TraitChainged
+function Communicator:Internal_CachePlayerTrait(strTarget, strTrait, tData, nRevision)
+  local tPlayerTraits = self.tCachedPlayerData[strTarget] or {}
+  
+  if(nRevision ~= 0 and tPlayerTraits.revision == nRevision) then
+    tPlayerTraits.time = os.time()
+    return
+  end
+  
+  if(tData == nil) then return end
+  
+  self.tCachedPlayerData[strTarget] = {
+    data = tData,
+    revision = nRevision,
+    time = os.time()
+  }
+  
+  self:Log(Communicator.CodeEnumDebug.Access, string.format("Caching %s's %s: (%d) %s", strTarget, strTrait, nRevision or 0, tostring(tData)))
+  Event_FireGenericEvent("Communicator_TraitChanged", { player = strTarget, trait = strTrait, data = tData, revision = nRevision })
+end
+
+function Communicator:Internal_Initialize()
   Apollo.RegisterPackage(self, MAJOR, MINOR, { })
 end
 
-Communicator:Initialize()
+---------------------------------------------------------------------------------------------------
+-- Package Registration
+---------------------------------------------------------------------------------------------------
+Communicator:Internal_Initialize()
