@@ -82,6 +82,7 @@ local function DistanceToUnit(unitTarget)
 end
 
 local Cozmotronic = {}
+local Communicator = {}
 local GeminiColor = {}
 local GeminiRichText = {}
 
@@ -140,10 +141,6 @@ function Cozmotronic:OnLoad()
   self.xmlDoc = XmlDoc.CreateFromFile("Cozmotronic.xml")
   self.xmlDoc:RegisterCallback("OnDocumentLoaded", self)
   self.strVersion = XmlDoc.CreateFromFile("toc.xml"):ToTable().Version
-  
-  -- Register ourselves with Communicator for ICCommLib
-  self.Communicator = Apollo.GetAddon("Communicator")
-  self.Communicator:RegisterAddon(self)
 end
 
 -- This function is called whenever the Addon has finished loading it's XML document.
@@ -152,6 +149,7 @@ end
 function Cozmotronic:OnDocumentLoaded()
   GeminiColor = Apollo.GetPackage("GeminiColor").tPackage
   GeminiRichText = Apollo.GetPackage("GeminiRichText").tPackage
+  Communicator = Apollo.GetPackage("Communicator").tPackage
   
   if self.xmlDoc ~= nil and self.xmlDoc:IsLoaded() then
     -- Set up the main window of our Addon.
@@ -176,6 +174,10 @@ function Cozmotronic:OnDocumentLoaded()
     -- Set up our timers
     self.tmrNameplateRefresh = ApolloTimer.Create(1, true, "OnTimerRefreshNameplates", self)
     self.tmrUpdateMyNameplate = ApolloTimer.Create(5, false, "OnTimerUpdateMyNameplate", self)
+    
+    -- Setup Communicator
+    self.Communicator = Communicator:new()
+    self.Communicator:Setup("Cozmotronic")
   else
     error("Failed to load XML")    
   end
@@ -251,6 +253,7 @@ function Cozmotronic:OnSave(eLevel)
     return nil
   end
 end
+
 
 -- This function is called by the Client whenever the Addon needs to restore the data.
 -- Because the settings can vary from character, to realm, to account, we need to check
