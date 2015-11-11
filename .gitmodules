@@ -4,3 +4,6 @@
 [submodule "GeminiRichText"]
 	path = GeminiRichText
 	url = git@github.com:wildstarnasa/GeminiRichText.git
+[submodule "Communicator"]
+	path = Communicator
+	url = git@github.com:NekoNova/Communicator.git
