@@ -149,7 +149,6 @@ end
 function Cozmotronic:OnDocumentLoaded()
   GeminiColor = Apollo.GetPackage("GeminiColor").tPackage
   GeminiRichText = Apollo.GetPackage("GeminiRichText").tPackage
-  Communicator = Apollo.GetPackage("Communicator").tPackage
   
   if self.xmlDoc ~= nil and self.xmlDoc:IsLoaded() then
     -- Set up the main window of our Addon.
@@ -176,7 +175,7 @@ function Cozmotronic:OnDocumentLoaded()
     self.tmrUpdateMyNameplate = ApolloTimer.Create(5, false, "OnTimerUpdateMyNameplate", self)
     
     -- Setup Communicator
-    self.Communicator = Communicator:new()
+    self.Communicator = Apollo.GetPackage("Communicator").tPackage
     self.Communicator:Setup("Cozmotronic")
   else
     error("Failed to load XML")    
